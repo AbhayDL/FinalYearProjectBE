@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Students - Teacher</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="navbar">
+    <button class="back-btn" onclick="goBack()">← Back to Dashboard</button>
+  </div>
+
+  <div class="container">
+    <h1>Manage Students</h1>
+    <p class="muted">Manage student list and view basic progress (local demo)</p>
+
+    <div id="studentsList" class="students-list"></div>
+
+    <div class="actions">
+      <button onclick="addDemoStudent()">Add Demo Student</button>
+      <button onclick="clearStudents()">Clear All</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - CodeRunner</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="admin-styles.css">
+</head>
+<body>
+  <div class="admin-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2><i class="fas fa-crown"></i> Admin</h2>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" data-page="dashboard">
+          <i class="fas fa-chart-line"></i> Dashboard
+        </a>
+        <a href="#" class="nav-item" data-page="users">
+          <i class="fas fa-users"></i> Users
+        </a>
+        <a href="#" class="nav-item" data-page="subjects">
+          <i class="fas fa-book"></i> Subjects
+        </a>
+        <a href="#" class="nav-item" data-page="analytics">
+          <i class="fas fa-bar-chart"></i> Analytics
+        </a>
+        <a href="#" class="nav-item" data-page="settings">
+          <i class="fas fa-cog"></i> Settings
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button id="logoutBtn" class="logout-btn">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Header -->
+      <header class="admin-header">
+        <h1 id="pageTitle">Dashboard</h1>
+        <div class="header-actions">
+          <span id="adminName" class="admin-name"></span>
+        </div>
+      </header>
+
+      <!-- Pages -->
+      <div class="pages-container">
+        <!-- Dashboard Page -->
+        <div id="dashboard" class="page active">
+          <div class="dashboard-grid">
+            <div class="stat-card">
+              <div class="stat-icon total-students">
+                <i class="fas fa-graduation-cap"></i>
+              </div>
+              <div class="stat-content">
+                <h3>Total Students</h3>
+                <p id="statStudents" class="stat-number">0</p>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon total-teachers">
+                <i class="fas fa-chalkboard-user"></i>
+              </div>
+              <div class="stat-content">
+                <h3>Total Teachers</h3>
+                <p id="statTeachers" class="stat-number">0</p>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon total-subjects">
+                <i class="fas fa-book"></i>
+              </div>
+              <div class="stat-content">
+                <h3>Total Subjects</h3>
+                <p id="statSubjects" class="stat-number">0</p>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon total-problems">
+                <i class="fas fa-code"></i>
+              </div>
+              <div class="stat-content">
+                <h3>Total Problems</h3>
+                <p id="statProblems" class="stat-number">0</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="recent-section">
+            <h3>Recent Problems</h3>
+            <div id="recentProblems" class="problems-list">Loading...</div>
+          </div>
+        </div>
+
+        <!-- Users Page -->
+        <div id="users" class="page">
+          <div class="page-header">
+            <button id="addUserBtn" class="btn btn-primary">
+              <i class="fas fa-plus"></i> Add User
+            </button>
+          </div>
+          <div id="usersList" class="table-container">Loading...</div>
+        </div>
+
+        <!-- Subjects Page -->
+        <div id="subjects" class="page">
+          <div class="page-header">
+            <button id="addSubjectBtn" class="btn btn-primary">
+              <i class="fas fa-plus"></i> Add Subject
+            </button>
+          </div>
+          <div id="subjectsList" class="table-container">Loading...</div>
+        </div>
+
+        <!-- Analytics Page -->
+        <div id="analytics" class="page">
+          <div class="analytics-header">
+            <div class="analytics-title">
+              <h2>Analytics Overview</h2>
+              <p>Breakdowns of users, problems, and subjects at a glance.</p>
+            </div>
+            <div class="analytics-badges">
+              <span class="analytics-badge">Snapshot</span>
+              <span class="analytics-badge">Breakdowns</span>
+            </div>
+          </div>
+          <div id="analyticsContent" class="analytics-container">Loading...</div>
+        </div>
+
+        <!-- Settings Page -->
+        <div id="settings" class="page">
+          <div class="settings-grid">
+            <div class="settings-card">
+              <h3>Profile</h3>
+              <p class="settings-subtitle">Update your admin details.</p>
+              <form id="settingsProfileForm" class="settings-form">
+                <div class="form-group">
+                  <label>Full Name</label>
+                  <input type="text" id="settingsName" required>
+                </div>
+                <div class="form-group">
+                  <label>Email</label>
+                  <input type="email" id="settingsEmail" required>
+                </div>
+                <div class="form-group">
+                  <label>Role</label>
+                  <input type="text" id="settingsRole" disabled>
+                </div>
+                <div class="form-actions settings-actions">
+                  <button type="submit" class="btn btn-primary">Save Profile</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="settings-card">
+              <h3>Security</h3>
+              <p class="settings-subtitle">Change your password.</p>
+              <form id="settingsPasswordForm" class="settings-form">
+                <div class="form-group">
+                  <label>New Password</label>
+                  <input type="password" id="settingsPassword" minlength="6" autocomplete="new-password" required>
+                </div>
+                <div class="form-group">
+                  <label>Confirm Password</label>
+                  <input type="password" id="settingsPasswordConfirm" minlength="6" autocomplete="new-password" required>
+                </div>
+                <div class="form-actions settings-actions">
+                  <button type="submit" class="btn btn-primary">Update Password</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="settings-card">
+              <h3>Data Export</h3>
+              <p class="settings-subtitle">Download current data snapshots as CSV.</p>
+              <div class="settings-list">
+                <button type="button" id="exportUsersBtn" class="btn btn-secondary">Export Users</button>
+                <button type="button" id="exportSubjectsBtn" class="btn btn-secondary">Export Subjects</button>
+                <button type="button" id="exportProblemsBtn" class="btn btn-secondary">Export Problems</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="settingsStatus" class="settings-status"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modals -->
+  <div id="addUserModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add User</h2>
+        <button class="close-btn">&times;</button>
+      </div>
+      <form id="addUserForm" class="modal-form">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="userName" required>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="userEmail" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <div style="position:relative;">
+            <input type="password" id="userPassword" required style="padding-right:32px;">
+            <button type="button" id="toggleAddUserPassword" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;">
+              <span id="eyeIconAddUser">👁️</span>
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Role</label>
+          <select id="userRole" required>
+            <option value="student">Student</option>
+            <option value="teacher">Teacher</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Add User</button>
+          <button type="button" class="btn btn-secondary close-btn">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="addSubjectModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add Subject</h2>
+        <button class="close-btn">&times;</button>
+      </div>
+      <form id="addSubjectForm" class="modal-form">
+        <div class="form-group">
+          <label>Subject Name</label>
+          <input type="text" id="subjectName" required>
+        </div>
+        <div class="form-group">
+          <label>Subject Code</label>
+          <input type="text" id="subjectCode" required>
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="subjectDesc"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Assign Teacher</label>
+          <select id="subjectTeacher"></select>
+        </div>
+        <div class="form-group">
+          <label>Year</label>
+          <select id="subjectYear">
+            <option value="">Select Year</option>
+            <option value="1st">1st Year</option>
+            <option value="2nd">2nd Year</option>
+            <option value="3rd">3rd Year</option>
+            <option value="4th">4th Year</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Semester</label>
+          <select id="subjectSem">
+            <option value="">Select Semester</option>
+            <option value="Sem 1">Sem 1</option>
+            <option value="Sem 2">Sem 2</option>
+            <option value="Sem 3">Sem 3</option>
+            <option value="Sem 4">Sem 4</option>
+            <option value="Sem 5">Sem 5</option>
+            <option value="Sem 6">Sem 6</option>
+            <option value="Sem 7">Sem 7</option>
+            <option value="Sem 8">Sem 8</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Add Subject</button>
+          <button type="button" class="btn btn-secondary close-btn">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="admin-script.js"></script>
+  <script>
+    const addUserPassword = document.getElementById('userPassword');
+    const toggleAddUserPassword = document.getElementById('toggleAddUserPassword');
+    const eyeIconAddUser = document.getElementById('eyeIconAddUser');
+    if (toggleAddUserPassword) {
+      toggleAddUserPassword.addEventListener('click', function() {
+        if (addUserPassword.type === 'password') {
+          addUserPassword.type = 'text';
+          eyeIconAddUser.textContent = '🙈';
+        } else {
+          addUserPassword.type = 'password';
+          eyeIconAddUser.textContent = '👁️';
+        }
+      });
+    }
+  </script>
+</body>
+</html>

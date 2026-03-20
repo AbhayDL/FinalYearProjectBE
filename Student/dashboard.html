@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Dashboard - VLAB</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-header">
+        <h2 id="sidebar-welcome-title">Student Name</h2>
+        <p id="sidebar-welcome-subtitle">student@email.com</p>
+      </div>
+      <ul class="sidebar-nav">
+        <li class="nav-item active" onclick="showSection('dashboard')">
+          <i class="fas fa-tachometer-alt"></i> Dashboard
+        </li>
+        <li class="nav-item" onclick="showSection('problems')">
+          <i class="fas fa-code"></i> Problems
+        </li>
+        <li class="nav-item" onclick="showSection('submissions')">
+          <i class="fas fa-paper-plane"></i> Submissions
+        </li>
+        <li class="nav-item" onclick="showSection('profile')">
+          <i class="fas fa-user"></i> Profile
+        </li>
+      </ul>
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="logout()">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="main-shell-header">
+        <div>
+          <p class="shell-kicker">Student Workspace</p>
+          <h1>Dashboard</h1>
+        </div>
+      </header>
+
+      <!-- Dashboard Section -->
+      <section id="dashboard-section" class="section active">
+        <header class="section-header">
+          <h1>Welcome to VLAB</h1>
+          <p>Your coding learning platform</p>
+        </header>
+
+        <div class="dashboard-grid">
+          <div class="stat-card">
+            <div class="stat-icon">
+              <i class="fas fa-code"></i>
+            </div>
+            <div class="stat-content">
+              <h3 id="total-problems">0</h3>
+              <p>Available Problems</p>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-content">
+              <h3 id="solved-problems">0</h3>
+              <p>Problems Solved</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="recent-activity">
+          <h2>Recent Activity</h2>
+          <div id="recent-activity-list" class="activity-list">
+            <p>Loading recent activity...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Problems Section -->
+      <section id="problems-section" class="section">
+        <header class="section-header">
+          <h1>Available Problems</h1>
+          <p>Select a problem to start coding</p>
+        </header>
+
+        <div class="subjects-layout">
+          <div class="subjects-panel">
+            <h2>Subjects</h2>
+            <div id="subjects-list" class="subjects-list">
+              <p>Loading subjects...</p>
+            </div>
+          </div>
+          <div class="tasks-panel">
+            <h2 id="tasks-title">Tasks</h2>
+            <div id="problems-list" class="problems-grid">
+              <p>Select a subject to see tasks.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Submissions Section -->
+      <section id="submissions-section" class="section">
+        <header class="section-header">
+          <h1>Your Submissions</h1>
+          <p>Track your coding progress</p>
+        </header>
+
+        <div id="submissions-list" class="submissions-list">
+          <p>Loading submissions...</p>
+        </div>
+      </section>
+
+      <!-- Profile Section -->
+      <section id="profile-section" class="section">
+        <header class="section-header">
+          <h1>Profile Settings</h1>
+          <p>Manage your account information</p>
+        </header>
+
+        <div class="profile-form">
+          <div class="form-group">
+            <label for="profile-name">Name</label>
+            <input type="text" id="profile-name" readonly>
+          </div>
+          <div class="form-group">
+            <label for="profile-email">Email</label>
+            <input type="email" id="profile-email" readonly>
+          </div>
+          <div class="form-group">
+            <label for="profile-role">Role</label>
+            <input type="text" id="profile-role" readonly>
+          </div>
+          <div class="form-group">
+            <label for="profile-year">Year</label>
+            <select id="profile-year" disabled>
+              <option value="">Select Year</option>
+              <option value="1st">1st Year</option>
+              <option value="2nd">2nd Year</option>
+              <option value="3rd">3rd Year</option>
+              <option value="4th">4th Year</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="profile-semester">Semester</label>
+            <select id="profile-semester" disabled>
+              <option value="">Select Semester</option>
+              <option value="Sem 1">Sem 1</option>
+              <option value="Sem 2">Sem 2</option>
+              <option value="Sem 3">Sem 3</option>
+              <option value="Sem 4">Sem 4</option>
+              <option value="Sem 5">Sem 5</option>
+              <option value="Sem 6">Sem 6</option>
+              <option value="Sem 7">Sem 7</option>
+              <option value="Sem 8">Sem 8</option>
+            </select>
+          </div>
+          <div class="profile-actions">
+            <button class="btn-primary" id="edit-profile-btn" onclick="editProfile()">Edit Profile</button>
+            <button class="btn-primary" id="save-profile-btn" onclick="saveProfile()" style="display:none;">Save Profile</button>
+            <button class="btn-secondary" id="cancel-profile-btn" onclick="cancelProfileEdit()" style="display:none;">Cancel</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

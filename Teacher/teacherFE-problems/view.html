@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>View Problem - Teacher</title>
+  <link rel="stylesheet" href="view.css" />
+</head>
+<body>
+  <div class="navbar">
+    <button class="back-btn" onclick="goBack()">← Back to Problems</button>
+  </div>
+
+  <main class="container">
+    <div id="problemCard" class="problem-card">
+      <div class="row">
+        <div>
+          <h1 id="title">Loading...</h1>
+          <div id="meta" class="problem-meta"></div>
+        </div>
+        <div class="view-actions">
+          <button onclick="editCurrent()">Edit</button>
+          <button class="del" onclick="deleteCurrent()">Delete</button>
+        </div>
+      </div>
+      <p id="description"></p>
+
+      <div class="attributes">
+        <div><strong>Input Format:</strong> <span id="inputFormat"></span></div>
+        <div><strong>Output Format:</strong> <span id="outputFormat"></span></div>
+        <div><strong>Constraints:</strong> <span id="constraints"></span></div>
+        <div><strong>Year / Semester:</strong> <span id="yearSem"></span></div>
+        <div><strong>Subject:</strong> <span id="subject"></span></div>
+        <div><strong>Difficulty:</strong> <span id="difficulty"></span></div>
+        <div><strong>Language:</strong> <span id="language"></span></div>
+        <div><strong>Status:</strong> <span id="status"></span></div>
+        <div><strong>Created By:</strong> <span id="createdBy"></span></div>
+        <div><strong>Created At:</strong> <span id="createdAt"></span></div>
+      </div>
+
+      <h2>Test Cases</h2>
+      <div id="testCases"></div>
+
+      <h2>Submission Summary</h2>
+      <div id="submissionSummary" class="submission-summary">
+        <p>Loading submission summary...</p>
+      </div>
+    </div>
+  </main>
+
+  <script src="view.js"></script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Problems - Teacher</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="navbar">
+    <button class="back-btn" onclick="goBack()">&lt;- Back to Dashboard</button>
+  </div>
+
+  <div class="container">
+    <header class="page-header">
+      <div>
+        <h1>My Problems</h1>
+        <p class="muted">Manage problems you created - view, edit or delete</p>
+      </div>
+      <div class="header-actions">
+        <span class="teacher-badge" id="teacherBadge">Teacher</span>
+        <button class="create-btn" onclick="location.href='../teacherFE-upload_page/index.html'">+ Create Problem</button>
+      </div>
+    </header>
+
+    <section class="subjects-layout">
+      <div class="subjects-panel">
+        <h2>Subjects</h2>
+        <div id="subjectsList" class="subjects-list">
+          <p>Loading subjects...</p>
+        </div>
+      </div>
+      <div class="tasks-panel">
+        <div class="tasks-header">
+          <h2 id="tasksTitle">Tasks</h2>
+          <p id="tasksHint" class="muted small">Select a subject to see tasks.</p>
+        </div>
+        <div id="problemsList" class="problems-grid">
+          <p>Select a subject to see tasks.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

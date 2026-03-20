@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Completion</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="main-layout">
+    <!-- Sidebar Navigation -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h2 id="sidebar-welcome-title"><i class="fas fa-chalkboard-user"></i> Welcome, Teacher</h2>
+        <p id="sidebar-welcome-subtitle">Plan, publish, and track classroom coding work.</p>
+      </div>
+      <ul class="sidebar-nav">
+        <li class="nav-item">
+          <a href="#" onclick="navigateTo('index.html')">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#" onclick="navigateTo('../teacherFE-problems/index.html')">
+            <i class="fas fa-code"></i> Problems
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#" onclick="navigateTo('../teacherFE-upload_page/index.html')">
+            <i class="fas fa-upload"></i> Upload Problem
+          </a>
+        </li>
+        <li class="nav-item active">
+          <a href="#" onclick="navigateTo('task-completion.html')">
+            <i class="fas fa-clipboard-check"></i> Task Completion
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#" onclick="navigateTo('index.html?section=students')">
+            <i class="fas fa-users"></i> Manage Students
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="#" onclick="navigateTo('index.html?section=settings')">
+            <i class="fas fa-cog"></i> Settings
+          </a>
+        </li>
+      </ul>
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="handleLogout()">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <header class="main-shell-header">
+        <div>
+          <p class="shell-kicker">Teacher Workspace</p>
+          <h1>Task Completion</h1>
+        </div>
+        <div class="shell-badge">Filtered progress</div>
+      </header>
+
+      <div class="section active">
+        <div class="section-header">
+          <h2>Task Completion</h2>
+        </div>
+
+        <div class="completion-module">
+          <div class="module-header">
+            <h3>Subject Summary</h3>
+            <select id="subject-select">
+              <option value="">Select a subject...</option>
+            </select>
+            <button class="btn-secondary" id="subject-export-btn">Export CSV</button>
+          </div>
+          <div id="subject-summary" class="completion-summary">
+            <p>Select a subject to see completion across all tasks.</p>
+          </div>
+        </div>
+
+        <div class="completion-module">
+          <div class="module-header">
+            <h3>Problem Summary</h3>
+            <select id="completion-subject-select">
+              <option value="">Select a subject...</option>
+            </select>
+            <select id="completion-problem-select">
+              <option value="">Select a problem...</option>
+            </select>
+            <select id="completion-filter">
+              <option value="all">All</option>
+              <option value="passed">Solved</option>
+              <option value="pending">Not yet</option>
+            </select>
+            <button class="btn-secondary" id="completion-export-btn">Export CSV</button>
+          </div>
+          <div id="completion-summary" class="completion-summary">
+            <p>Select a problem to see which students have solved it.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="task-completion.js"></script>
+</body>
+</html>

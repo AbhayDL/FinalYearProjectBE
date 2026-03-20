@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CodeAssPlat Login</title>
+  <link rel="stylesheet" href="login.css">
+</head>
+<body>
+  <div class="background-pattern"></div>
+
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <h1 id="loginTitle">Student Login</h1>
+        <p id="loginSubtitle">Login to continue coding.</p>
+      </div>
+
+      <div class="role-switch" role="tablist" aria-label="Login role">
+        <button type="button" class="role-tab active" data-role="student" onclick="setRole('student')">Student</button>
+        <button type="button" class="role-tab" data-role="teacher" onclick="setRole('teacher')">Teacher</button>
+      </div>
+
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            class="input"
+            placeholder="Enter your email"
+            required
+          />
+          <span class="error-message" id="emailError"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="password-input-wrapper">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              class="input password-input"
+              placeholder="Enter your password"
+              required
+            />
+            <button type="button" class="toggle-password" onclick="togglePassword()">Show</button>
+          </div>
+          <span class="error-message" id="passwordError"></span>
+        </div>
+
+        <div class="form-options">
+          <label class="remember-me">
+            <input type="checkbox" id="rememberMe" name="rememberMe" />
+            <span>Remember me</span>
+          </label>
+          <a href="#forgotPassword" class="forgot-password">Forgot Password?</a>
+        </div>
+
+        <button type="submit" class="login-btn" id="loginButton">Login</button>
+      </form>
+
+      <div class="divider">
+        <span id="loginHelper">Use your student account created by admin.</span>
+      </div>
+    </div>
+
+    <div id="errorModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h2>Login Failed</h2>
+        <p id="errorMessage"></p>
+        <button class="modal-btn" onclick="closeModal()">Try Again</button>
+      </div>
+    </div>
+
+    <div id="successModal" class="modal">
+      <div class="modal-content success">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h2>Login Successful</h2>
+        <p id="successMessage">Redirecting...</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="login.js"></script>
+</body>
+</html>

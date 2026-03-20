@@ -1,0 +1,217 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #0b1020;
+  --bg-2: #0f172a;
+  --surface: rgba(15, 23, 42, 0.75);
+  --surface-strong: rgba(17, 24, 39, 0.92);
+  --border: rgba(148, 163, 184, 0.18);
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --accent: #38bdf8;
+  --accent-2: #f59e0b;
+  --success: #34d399;
+  --danger: #fb7185;
+  --shadow: 0 24px 40px -28px rgba(15, 23, 42, 0.8);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Space Grotesk", "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  background-image:
+    radial-gradient(900px circle at 10% 10%, rgba(56, 189, 248, 0.12), transparent 45%),
+    radial-gradient(800px circle at 85% 15%, rgba(245, 158, 11, 0.12), transparent 45%),
+    linear-gradient(180deg, var(--bg), var(--bg-2) 60%, var(--bg));
+  color: var(--text);
+  min-height: 100vh;
+  padding: 4.25rem 1.5rem 4rem;
+}
+
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(11, 18, 32, 0.88);
+  backdrop-filter: blur(16px);
+  padding: 0.9rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 18px 35px -30px rgba(15, 23, 42, 0.9);
+}
+
+.back-btn {
+  padding: 0.6rem 1.1rem;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #e0f2fe;
+  border-radius: 0.85rem;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: rgba(56, 189, 248, 0.55);
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.problem-card {
+  background: var(--surface);
+  padding: 1.75rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.problem-card h1 {
+  font-size: 1.7rem;
+  margin-bottom: 0.4rem;
+  color: #f8fafc;
+}
+
+.problem-meta {
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+
+.problem-card p {
+  color: #cbd5e1;
+  margin-bottom: 1rem;
+}
+
+.attributes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.attributes div {
+  background: rgba(2, 6, 23, 0.4);
+  padding: 0.75rem;
+  border-radius: 0.8rem;
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+#testCases {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.testcase {
+  background: rgba(2, 6, 23, 0.45);
+  padding: 0.85rem;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.testcase pre {
+  white-space: pre-wrap;
+  color: #a7f3d0;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.65rem;
+  border-radius: 0.6rem;
+  overflow: auto;
+}
+
+/* Submission summary */
+.submission-summary {
+  margin-top: 0.75rem;
+  background: rgba(2, 6, 23, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 0.9rem;
+  padding: 0.9rem;
+}
+
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.summary-table th,
+.summary-table td {
+  text-align: left;
+  padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  font-size: 0.9rem;
+}
+
+.summary-table th {
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.summary-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.summary-status.passed {
+  background: rgba(52, 211, 153, 0.18);
+  color: #a7f3d0;
+  border: 1px solid rgba(52, 211, 153, 0.45);
+}
+
+.summary-status.pending {
+  background: rgba(148, 163, 184, 0.2);
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+/* View actions */
+.view-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.view-actions button {
+  padding: 0.55rem 0.95rem;
+  border-radius: 0.8rem;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--accent), #60a5fa);
+  color: #0b1020;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.view-actions button.del {
+  background: linear-gradient(135deg, #fb7185, #f43f5e);
+  color: #0b1020;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px -18px rgba(56, 189, 248, 0.8);
+}
+
+@media (max-width: 600px) {
+  .view-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
