@@ -245,14 +245,14 @@ form {
   color: #e2e8f0;
 }
 
-.forgot-password {
+.admin-login-link {
   color: #bae6fd;
   text-decoration: none;
   transition: color 0.3s ease;
   font-weight: 600;
 }
 
-.forgot-password:hover {
+.admin-login-link:hover {
   color: #e0f2fe;
   text-decoration: underline;
 }

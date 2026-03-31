@@ -4,6 +4,7 @@
 const DEFAULT_BASE_URL = localStorage.getItem("API_BASE_URL") || "http://localhost:4000";
 const PROBLEMS_BASE_URL = localStorage.getItem("PROBLEMS_BASE_URL") || DEFAULT_BASE_URL;
 const AUTH_BASE_URL = localStorage.getItem("AUTH_BASE_URL") || DEFAULT_BASE_URL;
+const TEACHER_LOGIN_URL = "../../Student/index.html?role=teacher";
 
 function getBaseUrl(base) {
   try {
@@ -24,7 +25,7 @@ function ensureLoggedIn() {
   const token = localStorage.getItem("teacherToken");
   const userStr = localStorage.getItem("teacherUser");
   if (!token || !userStr) {
-    window.location.href = "index.html";
+    window.location.href = TEACHER_LOGIN_URL;
     return false;
   }
 
@@ -51,7 +52,7 @@ function handleLogout() {
     localStorage.removeItem("teacherEmail");
     localStorage.removeItem("teacherRememberMe");
     sessionStorage.clear();
-    window.location.href = "index.html";
+    window.location.href = TEACHER_LOGIN_URL;
   }
 }
 
@@ -89,6 +90,13 @@ let completionSubjectTitle = "";
 let subjectSummaryData = null;
 let subjectSummaryTitle = "subject_summary";
 let allProblems = [];
+let selectedProblemId = "";
+let selectedStudentId = "";
+let selectedSubmissionId = "";
+const reviewParams = new URLSearchParams(window.location.search);
+const requestedProblemId = reviewParams.get("problem_id");
+const requestedStudentId = reviewParams.get("student_id");
+const requestedSubmissionId = reviewParams.get("submission_id");
 
 async function loadTaskCompletionModule() {
   const select = document.getElementById("completion-problem-select");
@@ -229,6 +237,20 @@ async function loadTaskCompletionModule() {
       subjectSummaryTitle = subjectSelect.value;
       loadSubjectSummary(subjectSelect.value, token);
     }
+
+    if (requestedProblemId) {
+      const requestedProblem = allProblems.find((problem) => problem._id === requestedProblemId);
+      if (requestedProblem) {
+        if (completionSubjectSelect && requestedProblem.subject) {
+          completionSubjectSelect.value = requestedProblem.subject;
+          completionSubjectTitle = requestedProblem.subject;
+        }
+        populateProblemSelectForSubject(completionSubjectTitle);
+        select.value = requestedProblemId;
+        completionProblemTitle = requestedProblem.title || "task_completion";
+        await loadCompletionSummary(requestedProblemId, token);
+      }
+    }
   } catch (error) {
     console.error("Task completion load failed:", error);
     container.innerHTML = "<p>Failed to load problems.</p>";
@@ -265,11 +287,22 @@ function populateProblemSelectForSubject(subject) {
   });
 }
 
+function getTeacherSummaryStatus(student) {
+  if (student.hasPassed) return { className: "passed", label: "Solved" };
+  if (student.queryStatus === "revised_by_student") return { className: "query", label: "Revised Query" };
+  if (student.queryStatus === "open") return { className: "query", label: "Query" };
+  if (student.queryStatus === "answered") return { className: "answered", label: "Answered" };
+  if (student.hasSubmitted) return { className: "failed", label: "Attempted" };
+  return { className: "pending", label: "Not yet" };
+}
+
 async function loadCompletionSummary(problemId, token) {
   const container = document.getElementById("completion-summary");
   if (!container) return;
+  selectedProblemId = problemId;
 
   container.innerHTML = "<p>Loading submission summary...</p>";
+  renderSubmissionViewerEmpty("Select a student submission to view the latest code.");
 
   try {
     const res = await fetch(
@@ -294,6 +327,11 @@ async function loadCompletionSummary(problemId, token) {
     }
 
     renderCompletionTable();
+    if (requestedSubmissionId) {
+      await viewSubmissionCode(requestedStudentId || "", requestedSubmissionId);
+    } else if (requestedStudentId && requestedProblemId === problemId) {
+      await viewSubmissionCode(requestedStudentId);
+    }
   } catch (error) {
     console.error("Completion summary failed:", error);
     container.innerHTML = "<p>Failed to load submission summary.</p>";
@@ -327,15 +365,22 @@ function renderCompletionTable() {
   </div>`;
 
   const rows = filtered.map(s => {
-    const statusClass = s.hasPassed ? "passed" : "pending";
-    const statusText = s.hasPassed ? "Solved" : "Not yet";
+    const status = getTeacherSummaryStatus(s);
     const submittedAt = s.submittedAt ? new Date(s.submittedAt).toLocaleString() : "-";
     return `<tr>
       <td>${escapeHtml(s.name || "Unknown")}</td>
       <td>${escapeHtml(s.email || "")}</td>
-      <td><span class="completion-status ${statusClass}">${statusText}</span></td>
+      <td><span class="completion-status ${status.className}">${status.label}</span></td>
       <td>${s.score || 0}</td>
       <td>${submittedAt}</td>
+      <td>
+        ${s.hasSubmitted
+          ? `<div class="table-actions">
+              <button class="btn-secondary btn-action" onclick="viewSubmissionCode('${s.id}', '${s.submissionId || ""}')">View Code</button>
+              ${s.queryPending ? '<span class="student-meta-pill">Query Pending</span>' : ""}
+            </div>`
+          : '<span class="student-meta-pill">No submission</span>'}
+      </td>
     </tr>`;
   }).join("");
 
@@ -345,16 +390,202 @@ function renderCompletionTable() {
         <tr>
           <th>Student</th>
           <th>Email</th>
-          <th>Status</th>
-          <th>Score</th>
-          <th>Submitted At</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
+        <th>Status</th>
+        <th>Score</th>
+        <th>Submitted At</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
   </div>`;
 
   container.innerHTML = header + table;
+}
+
+function renderSubmissionViewerEmpty(message) {
+  const container = document.getElementById("submission-viewer");
+  if (!container) return;
+  container.innerHTML = `<p class="submission-viewer-empty">${escapeHtml(message || "Select a student submission to view the latest code.")}</p>`;
+}
+
+function getLanguageLabel(languageId) {
+  const map = {
+    71: "Python 3",
+    62: "Java",
+    54: "C++",
+    50: "C",
+    63: "JavaScript",
+    60: "Go",
+    73: "Rust",
+    72: "Ruby"
+  };
+  return map[Number(languageId)] || String(languageId || "-");
+}
+
+async function fetchTeacherSubmissionReview(token, studentId, submissionId) {
+  const attemptedSubmissionIds = [];
+  const summaryStudents = completionData?.students || [];
+  const matchedByStudent = summaryStudents.find((student) => student.id === studentId);
+  const matchedBySubmission = summaryStudents.find((student) => student.submissionId === studentId);
+
+  if (submissionId) attemptedSubmissionIds.push(submissionId);
+  if (matchedByStudent?.submissionId && !attemptedSubmissionIds.includes(matchedByStudent.submissionId)) {
+    attemptedSubmissionIds.push(matchedByStudent.submissionId);
+  }
+  if (matchedBySubmission?.submissionId && !attemptedSubmissionIds.includes(matchedBySubmission.submissionId)) {
+    attemptedSubmissionIds.push(matchedBySubmission.submissionId);
+  }
+  if (requestedSubmissionId && !attemptedSubmissionIds.includes(requestedSubmissionId)) {
+    attemptedSubmissionIds.push(requestedSubmissionId);
+  }
+
+  for (const currentSubmissionId of attemptedSubmissionIds) {
+    const res = await fetch(
+      `${EFFECTIVE_AUTH_BASE}/api/submissions/teacher/submission/${encodeURIComponent(currentSubmissionId)}/latest`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      return {
+        data,
+        studentId: data?.student?._id || matchedByStudent?.id || matchedBySubmission?.id || studentId || "",
+        submissionId: data?.submission?.id || currentSubmissionId
+      };
+    }
+  }
+
+  const fallbackStudentId = matchedBySubmission?.id || studentId;
+  const res = await fetch(
+    `${EFFECTIVE_AUTH_BASE}/api/submissions/teacher/problem/${encodeURIComponent(selectedProblemId)}/student/${encodeURIComponent(fallbackStudentId)}/latest`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to load submission code");
+  }
+
+  return {
+    data,
+    studentId: data?.student?._id || fallbackStudentId,
+    submissionId: data?.submission?.id || matchedByStudent?.submissionId || ""
+  };
+}
+
+async function viewSubmissionCode(studentId, submissionId = "") {
+  const token = localStorage.getItem("teacherToken");
+  const container = document.getElementById("submission-viewer");
+  if (!token || !selectedProblemId || !container) return;
+
+  container.innerHTML = "<p>Loading latest submission code...</p>";
+
+  try {
+    const review = await fetchTeacherSubmissionReview(token, studentId, submissionId);
+    const data = review.data || {};
+    const submission = data.submission || {};
+    const student = data.student || {};
+    selectedStudentId = review.studentId || studentId;
+    selectedSubmissionId = review.submissionId || submissionId || submission.id || "";
+
+    container.innerHTML = `
+      <div class="submission-viewer-card">
+        <div class="submission-meta-grid">
+          <div class="submission-meta-tile">
+            <span>Student</span>
+            <strong>${escapeHtml(student.name || "Unknown")}</strong>
+          </div>
+          <div class="submission-meta-tile">
+            <span>Email</span>
+            <strong>${escapeHtml(student.email || "")}</strong>
+          </div>
+          <div class="submission-meta-tile">
+            <span>Status</span>
+            <strong>${escapeHtml(submission.status || "unknown")}</strong>
+          </div>
+          <div class="submission-meta-tile">
+            <span>Score</span>
+            <strong>${submission.score || 0}</strong>
+          </div>
+          <div class="submission-meta-tile">
+            <span>Language Id</span>
+            <strong>${escapeHtml(getLanguageLabel(submission.languageId))}</strong>
+          </div>
+          <div class="submission-meta-tile">
+            <span>Updated</span>
+            <strong>${submission.updatedAt ? new Date(submission.updatedAt).toLocaleString() : "-"}</strong>
+          </div>
+          <div class="submission-meta-tile">
+            <span>Query Flag</span>
+            <strong>${escapeHtml(submission.queryStatus || "none")}</strong>
+          </div>
+          <div class="submission-meta-tile">
+            <span>Last Saved By</span>
+            <strong>${escapeHtml(submission.lastSavedBy || "student")}</strong>
+          </div>
+        </div>
+        <div>
+          <h4>Student Original Code</h4>
+          <pre class="submission-code"><code>${escapeHtml(submission.studentSourceCode || submission.sourceCode || "// No code found")}</code></pre>
+        </div>
+        <div>
+          <h4>Teacher Reviewed Code</h4>
+          <textarea id="teacher-code-editor" class="submission-code-editor" spellcheck="false">${escapeHtml(submission.teacherReviewedCode || submission.sourceCode || "// No code found")}</textarea>
+        </div>
+        <div class="submission-editor-actions">
+          <label class="resolve-query-toggle">
+            <input type="checkbox" id="resolve-query-toggle" ${submission.queryPending ? "checked" : ""}>
+            <span>Mark query as resolved when saving edited code</span>
+          </label>
+          <button class="btn-primary" onclick="saveTeacherEditedCode('${submission.id}', ${Number(submission.languageId) || 0})">Save Edited Code</button>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    console.error("Load submission code failed:", error);
+    renderSubmissionViewerEmpty(error.message || "Failed to load submission code.");
+  }
+}
+async function saveTeacherEditedCode(submissionId, languageId) {
+  const token = localStorage.getItem("teacherToken");
+  const input = document.getElementById("teacher-code-editor");
+  const resolveQuery = document.getElementById("resolve-query-toggle");
+  const sourceCode = String(input?.value || "");
+
+  if (!token || !submissionId) return;
+  if (!sourceCode.trim()) {
+    alert("Code editor is empty.");
+    return;
+  }
+
+  try {
+    const res = await fetch(
+      `${EFFECTIVE_AUTH_BASE}/api/submissions/teacher/${encodeURIComponent(submissionId)}/code`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          sourceCode,
+          languageId,
+          resolveQuery: Boolean(resolveQuery?.checked)
+        })
+      }
+    );
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || "Failed to update code");
+    }
+
+    await loadCompletionSummary(selectedProblemId, token);
+    if (selectedStudentId || selectedSubmissionId) {
+      await viewSubmissionCode(selectedStudentId, selectedSubmissionId);
+    }
+  } catch (error) {
+    console.error("Save teacher edited code failed:", error);
+    alert(error.message || "Failed to update code.");
+  }
 }
 
 function exportCompletionCSV() {

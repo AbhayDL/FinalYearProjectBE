@@ -1,6 +1,7 @@
 console.log("Problems page loaded");
 
 const API_BASE = localStorage.getItem("API_BASE_URL") || "http://localhost:4000";
+const TEACHER_LOGIN_URL = "../../Student/index.html?role=teacher";
 
 const state = {
   problems: [],
@@ -17,7 +18,7 @@ window.addEventListener("DOMContentLoaded", initPage);
 async function initPage() {
   const token = localStorage.getItem("teacherToken");
   if (!token) {
-    window.location.href = "../teacherFE-login/index.html";
+    window.location.href = TEACHER_LOGIN_URL;
     return;
   }
 
@@ -237,7 +238,7 @@ async function deleteProblem(id) {
   try {
     const token = localStorage.getItem("teacherToken");
     if (!token) {
-      window.location.href = "../teacherFE-login/index.html";
+      window.location.href = TEACHER_LOGIN_URL;
       return;
     }
     const res = await fetch(`${API_BASE}/api/problems/${id}`, {

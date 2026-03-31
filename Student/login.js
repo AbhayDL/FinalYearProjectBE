@@ -3,6 +3,7 @@ localStorage.setItem("API_BASE_URL", AUTH_BASE_URL);
 localStorage.setItem("AUTH_BASE_URL", AUTH_BASE_URL);
 localStorage.setItem("PROBLEMS_BASE_URL", AUTH_BASE_URL);
 localStorage.setItem("EXECUTOR_BASE_URL", AUTH_BASE_URL);
+const SHARED_REMEMBERED_ROLE_KEY = "sharedLoginRole";
 
 const ROLE_CONFIG = {
   student: {
@@ -56,6 +57,11 @@ function setRole(role) {
   const remembered = localStorage.getItem(config.rememberFlagKey) === "true";
   document.getElementById("email").value = remembered && savedEmail ? savedEmail : "";
   document.getElementById("rememberMe").checked = remembered && Boolean(savedEmail);
+  document.getElementById("password").value = "";
+
+  if (remembered && savedEmail) {
+    localStorage.setItem(SHARED_REMEMBERED_ROLE_KEY, currentRole);
+  }
 
   const url = new URL(window.location.href);
   url.searchParams.set("role", currentRole);
@@ -153,9 +159,11 @@ async function performLogin(email, password, rememberMe) {
     if (rememberMe) {
       localStorage.setItem(config.rememberEmailKey, data.user.email);
       localStorage.setItem(config.rememberFlagKey, "true");
+      localStorage.setItem(SHARED_REMEMBERED_ROLE_KEY, currentRole);
     } else {
       localStorage.removeItem(config.rememberEmailKey);
       localStorage.removeItem(config.rememberFlagKey);
+      localStorage.removeItem(SHARED_REMEMBERED_ROLE_KEY);
     }
 
     localStorage.setItem(config.tokenKey, data.token);
@@ -194,7 +202,8 @@ function closeModal() {
 
 document.addEventListener("DOMContentLoaded", function () {
   const roleFromUrl = new URLSearchParams(window.location.search).get("role");
-  setRole(roleFromUrl || "student");
+  const rememberedRole = localStorage.getItem(SHARED_REMEMBERED_ROLE_KEY);
+  setRole(roleFromUrl || rememberedRole || "student");
 
   const modals = document.querySelectorAll(".modal");
   window.addEventListener("click", function (event) {

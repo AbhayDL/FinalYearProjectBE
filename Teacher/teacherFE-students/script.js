@@ -1,4 +1,5 @@
 const API_BASE = localStorage.getItem("API_BASE_URL") || "http://localhost:4000";
+const TEACHER_LOGIN_URL = "../../Student/index.html?role=teacher";
 
 const state = {
   students: [],
@@ -20,7 +21,7 @@ function escapeHtml(text) {
 function getTeacherToken() {
   const token = localStorage.getItem("teacherToken");
   if (!token) {
-    window.location.href = "../teacherFE-login/index.html";
+    window.location.href = TEACHER_LOGIN_URL;
     return null;
   }
   return token;
@@ -145,6 +146,12 @@ function renderStudents() {
       </div>
       <div class="student-actions">
         <button
+          class="action-btn"
+          onclick="openStudentDetails('${student._id}')"
+        >
+          View Details
+        </button>
+        <button
           class="action-btn ${student.isActive ? "danger" : ""}"
           onclick="toggleStudentStatus('${student._id}')"
         >
@@ -154,6 +161,11 @@ function renderStudents() {
     `;
     list.appendChild(card);
   });
+}
+
+function openStudentDetails(studentId) {
+  if (!studentId) return;
+  window.location.href = `student-detail.html?student_id=${encodeURIComponent(studentId)}`;
 }
 
 async function loadStudents() {

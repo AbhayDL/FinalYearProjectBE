@@ -34,6 +34,31 @@ function buildAudienceConditions(problems) {
   return conditions;
 }
 
+function normalizeAcademicValue(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+async function getTeacherAudience(req) {
+  const teacherProblems = await Problem.find({ createdBy: req.user.email })
+    .select("_id year semester title subject createdAt")
+    .lean();
+
+  return {
+    teacherProblems,
+    audienceConditions: buildAudienceConditions(teacherProblems)
+  };
+}
+
+function isStudentInAudience(student, audienceConditions) {
+  return (audienceConditions || []).some((condition) => {
+    const yearOk = !condition.year || normalizeAcademicValue(condition.year) === normalizeAcademicValue(student.year);
+    const semesterOk = !condition.semester || normalizeAcademicValue(condition.semester) === normalizeAcademicValue(student.semester);
+    return yearOk && semesterOk;
+  });
+}
+
 // GET /api/teacher/subjects - subjects assigned to the logged-in teacher
 router.get("/subjects", protect, teacher, async (req, res) => {
   try {
@@ -50,11 +75,7 @@ router.get("/subjects", protect, teacher, async (req, res) => {
 // GET /api/teacher/students - get all students created by admin
 router.get("/students", protect, teacher, async (req, res) => {
   try {
-    const teacherProblems = await Problem.find({ createdBy: req.user.email })
-      .select("year semester")
-      .lean();
-
-    const audienceConditions = buildAudienceConditions(teacherProblems);
+    const { audienceConditions } = await getTeacherAudience(req);
     if (audienceConditions.length === 0) {
       return res.json([]);
     }
@@ -72,11 +93,89 @@ router.get("/students", protect, teacher, async (req, res) => {
   }
 });
 
+router.get("/students/:id/overview", protect, teacher, async (req, res) => {
+  try {
+    const { teacherProblems, audienceConditions } = await getTeacherAudience(req);
+    if (audienceConditions.length === 0) {
+      return res.status(404).json({ message: "No students found for this teacher" });
+    }
+
+    const student = await User.findOne({
+      _id: req.params.id,
+      role: "student",
+      $or: audienceConditions
+    }).select("name email isActive createdAt updatedAt year semester");
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    const problemIds = teacherProblems.map((problem) => problem._id);
+    const submissions = await Submission.find({
+      student: student._id,
+      problem: { $in: problemIds }
+    })
+      .populate("problem", "title subject difficulty year semester")
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    const solvedCount = submissions.filter((submission) => submission.status === "passed").length;
+    const queryCount = submissions.filter((submission) => submission.queryPending).length;
+    const attemptedCount = submissions.filter((submission) => submission.status !== "passed").length;
+
+    res.json({
+      student: {
+        id: student._id,
+        name: student.name,
+        email: student.email,
+        isActive: student.isActive,
+        createdAt: student.createdAt,
+        updatedAt: student.updatedAt,
+        year: student.year,
+        semester: student.semester
+      },
+      summary: {
+        totalTeacherProblems: teacherProblems.length,
+        totalSubmissions: submissions.length,
+        solvedCount,
+        attemptedCount,
+        queryCount
+      },
+      submissions: submissions.map((submission) => ({
+        id: submission._id,
+        status: submission.status,
+        score: submission.score || 0,
+        passedCount: submission.passedCount || 0,
+        totalCount: submission.totalCount || 0,
+        queryPending: Boolean(submission.queryPending),
+        queryStatus: submission.queryStatus || "none",
+        teacherAnsweredAt: submission.teacherAnsweredAt || null,
+        updatedAt: submission.updatedAt,
+        createdAt: submission.createdAt,
+        problem: submission.problem
+          ? {
+              id: submission.problem._id,
+              title: submission.problem.title,
+              subject: submission.problem.subject,
+              difficulty: submission.problem.difficulty,
+              year: submission.problem.year,
+              semester: submission.problem.semester
+            }
+          : null
+      }))
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 // PUT /api/teacher/students/:id/status - toggle student active status
 router.put("/students/:id/status", protect, teacher, async (req, res) => {
   try {
+    const { audienceConditions } = await getTeacherAudience(req);
     const student = await User.findById(req.params.id);
-    if (!student || student.role !== "student") {
+    if (!student || student.role !== "student" || !isStudentInAudience(student, audienceConditions)) {
       return res.status(404).json({ message: "Student not found" });
     }
 
@@ -101,11 +200,8 @@ router.put("/students/:id/status", protect, teacher, async (req, res) => {
 // GET /api/teacher/analytics - get basic analytics for teacher dashboard
 router.get("/analytics", protect, teacher, async (req, res) => {
   try {
-    const teacherProblems = await Problem.find({ createdBy: req.user.email })
-      .select("_id title createdAt year semester")
-      .sort({ createdAt: -1 });
+    const { teacherProblems, audienceConditions } = await getTeacherAudience(req);
     const problemIds = teacherProblems.map(p => p._id);
-    const audienceConditions = buildAudienceConditions(teacherProblems);
 
     const [totalStudents, activeStudents] = await Promise.all([
       audienceConditions.length
@@ -119,9 +215,11 @@ router.get("/analytics", protect, teacher, async (req, res) => {
     let totalSubmissions = 0;
     let averageScore = 0;
     let recentPassedSubmissions = [];
+    let recentQuerySubmissions = [];
+    let pendingQueries = 0;
 
     if (problemIds.length > 0) {
-      const [submissionCount, avgAgg, recentSubmissions] = await Promise.all([
+      const [submissionCount, avgAgg, recentSubmissions, pendingQueryCount, recentQueries] = await Promise.all([
         Submission.countDocuments({ problem: { $in: problemIds } }),
         Submission.aggregate([
           { $match: { problem: { $in: problemIds } } },
@@ -132,10 +230,24 @@ router.get("/analytics", protect, teacher, async (req, res) => {
           .limit(5)
           .populate("student", "name")
           .populate("problem", "title"),
+        Submission.countDocuments({
+          problem: { $in: problemIds },
+          queryStatus: { $in: ["open", "revised_by_student"] }
+        }),
+        Submission.find({
+          problem: { $in: problemIds },
+          queryStatus: { $in: ["open", "revised_by_student"] }
+        })
+          .sort({ updatedAt: -1 })
+          .limit(3)
+          .populate("student", "name")
+          .populate("problem", "title"),
       ]);
       totalSubmissions = submissionCount;
       averageScore = Math.round(avgAgg[0]?.avgScore || 0);
       recentPassedSubmissions = recentSubmissions;
+      pendingQueries = pendingQueryCount;
+      recentQuerySubmissions = recentQueries;
     }
 
     res.json({
@@ -144,6 +256,7 @@ router.get("/analytics", protect, teacher, async (req, res) => {
       inactiveStudents: totalStudents - activeStudents,
       totalProblems: teacherProblems.length,
       totalSubmissions,
+      pendingQueries,
       averageScore,
       recentActivity: [
         ...teacherProblems.slice(0, 3).map((problem) => ({
@@ -154,6 +267,11 @@ router.get("/analytics", protect, teacher, async (req, res) => {
         ...recentPassedSubmissions.map((submission) => ({
           type: "submission",
           message: `${submission.student?.name || "A student"} solved "${submission.problem?.title || "a problem"}"`,
+          createdAt: submission.updatedAt,
+        })),
+        ...recentQuerySubmissions.map((submission) => ({
+          type: "query",
+          message: `${submission.student?.name || "A student"} requested review on "${submission.problem?.title || "a problem"}"`,
           createdAt: submission.updatedAt,
         })),
       ]

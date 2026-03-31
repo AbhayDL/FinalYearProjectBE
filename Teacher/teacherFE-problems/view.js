@@ -1,6 +1,7 @@
 console.log('Problem view loaded');
 
 const API_BASE = localStorage.getItem("API_BASE_URL") || "http://localhost:4000";
+const TEACHER_LOGIN_URL = "../../Student/index.html?role=teacher";
 
 function goBack(){ window.location.href = 'index.html'; }
 
@@ -9,7 +10,7 @@ function getIdFromQuery(){ return new URLSearchParams(window.location.search).ge
 function getToken(){
   const token = localStorage.getItem('teacherToken');
   if(!token){
-    window.location.href = '../teacherFE-login/index.html';
+    window.location.href = TEACHER_LOGIN_URL;
     return null;
   }
   return token;

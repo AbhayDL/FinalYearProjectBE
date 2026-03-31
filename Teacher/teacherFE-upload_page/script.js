@@ -3,6 +3,7 @@ console.log("SCRIPT LOADED");
 const API_BASE = localStorage.getItem("API_BASE_URL") || "http://localhost:4000";
 const DEFAULT_EXECUTOR_BASE = API_BASE;
 const EXECUTOR_BASE_URL = localStorage.getItem("EXECUTOR_BASE_URL") || DEFAULT_EXECUTOR_BASE;
+const TEACHER_LOGIN_URL = "../../Student/index.html?role=teacher";
 const EXECUTOR_FALLBACK_URLS = [
   EXECUTOR_BASE_URL,
   API_BASE
@@ -150,7 +151,7 @@ function applySubjectMeta(subjectName, options = {}) {
 function getTeacherToken() {
   const token = localStorage.getItem('teacherToken');
   if (!token) {
-    window.location.href = '../teacherFE-login/index.html';
+    window.location.href = TEACHER_LOGIN_URL;
     return null;
   }
   return token;

@@ -18,7 +18,150 @@ function buildStudentAccessFilter(access = {}) {
   return filter;
 }
 
+function normalizeAcademicValue(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function mapSubmissionComments(comments = []) {
+  return comments.map((comment) => ({
+    id: comment._id,
+    authorRole: comment.authorRole,
+    text: comment.text,
+    createdAt: comment.createdAt,
+    updatedAt: comment.updatedAt,
+    author: comment.author
+      ? {
+          id: comment.author._id,
+          name: comment.author.name,
+          email: comment.author.email
+        }
+      : null
+  }));
+}
+
+function getDisplaySourceCode(submission) {
+  if (submission.teacherReviewedCode) return submission.teacherReviewedCode;
+  if (submission.studentSourceCode) return submission.studentSourceCode;
+  return submission.sourceCode || "";
+}
+
+function getNextQueryStatus(previousSubmission, hasQuery) {
+  if (!hasQuery) return "none";
+  if (previousSubmission?.queryStatus === "answered" || previousSubmission?.teacherAnsweredAt) {
+    return "revised_by_student";
+  }
+  return "open";
+}
+
+async function verifyTeacherProblemAccess(problemId, teacherUser) {
+  const problem = await Problem.findById(problemId).select("title subject year semester createdBy");
+  if (!problem) {
+    return { error: { status: 404, message: "Problem not found" } };
+  }
+
+  if (problem.createdBy !== teacherUser.email) {
+    return { error: { status: 403, message: "Not allowed to assess this problem" } };
+  }
+
+  const assignedSubject = await Subject.findOne({
+    name: problem.subject,
+    assignedTeacher: teacherUser._id
+  }).select("_id year semester");
+
+  if (!assignedSubject) {
+    return { error: { status: 403, message: "Not allowed to assess this subject" } };
+  }
+
+  return { problem, assignedSubject };
+}
+
+function ensureStudentMatchesAccess(student, access = {}) {
+  if (!student) {
+    return { ok: false, status: 404, message: "Student not found" };
+  }
+
+  if (student.role !== "student") {
+    return { ok: false, status: 404, message: "Student not found" };
+  }
+
+  if (access.year && normalizeAcademicValue(student.year) !== normalizeAcademicValue(access.year)) {
+    return { ok: false, status: 403, message: "Student is outside this teacher's assigned year" };
+  }
+
+  if (access.semester && normalizeAcademicValue(student.semester) !== normalizeAcademicValue(access.semester)) {
+    return { ok: false, status: 403, message: "Student is outside this teacher's assigned semester" };
+  }
+
+  return { ok: true };
+}
+
 // Student submit: run hidden test cases and store submission
+exports.saveSolution = async (req, res) => {
+  try {
+    const { problemId, source_code, language_id, hasQuery } = req.body;
+
+    if (!problemId || !source_code || !language_id) {
+      return res.status(400).json({
+        message: "problemId, source_code, and language_id are required"
+      });
+    }
+
+    const parsedLanguageId = Number(language_id);
+    if (!Number.isFinite(parsedLanguageId)) {
+      return res.status(400).json({ message: "language_id must be a number" });
+    }
+
+    const problem = await Problem.findById(problemId).lean();
+    if (!problem) {
+      return res.status(404).json({ message: "Problem not found" });
+    }
+
+    const existingSubmission = await Submission.findOne({
+      student: req.user._id,
+      problem: problem._id
+    }).select("status passedCount totalCount score teacherAnsweredAt queryStatus teacherReviewedCode");
+
+    const nextQueryStatus = getNextQueryStatus(existingSubmission, Boolean(hasQuery));
+
+    const update = {
+      $set: {
+        sourceCode: source_code,
+        studentSourceCode: source_code,
+        teacherReviewedCode: existingSubmission?.teacherReviewedCode || "",
+        languageId: parsedLanguageId,
+        status: existingSubmission?.status || "saved",
+        passedCount: existingSubmission?.passedCount || 0,
+        totalCount: existingSubmission?.totalCount || 0,
+        score: existingSubmission?.score || 0,
+        queryPending: Boolean(hasQuery),
+        queryStatus: nextQueryStatus,
+        teacherAnsweredAt: hasQuery ? null : existingSubmission?.teacherAnsweredAt || null,
+        lastSavedBy: "student"
+      }
+    };
+
+    const submission = await Submission.findOneAndUpdate(
+      { student: req.user._id, problem: problem._id },
+      update,
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+
+    res.json({
+      message: hasQuery
+        ? "Code saved and marked with query for teacher review."
+        : "Code saved successfully.",
+      submissionId: submission._id,
+      queryPending: submission.queryPending,
+      queryStatus: submission.queryStatus
+    });
+  } catch (error) {
+    console.error("Save failed:", error.message);
+    res.status(500).json({ message: "Failed to save code" });
+  }
+};
+
 exports.submitSolution = async (req, res) => {
   try {
     const { problemId, source_code, language_id } = req.body;
@@ -69,11 +212,17 @@ exports.submitSolution = async (req, res) => {
       {
         $set: {
           sourceCode: source_code,
+          studentSourceCode: source_code,
+          teacherReviewedCode: "",
           languageId: parsedLanguageId,
           status,
           passedCount,
           totalCount,
           score,
+          queryPending: false,
+          queryStatus: "none",
+          teacherAnsweredAt: null,
+          lastSavedBy: "student",
           updatedAt: now
         },
         $setOnInsert: { createdAt: now }
@@ -102,19 +251,11 @@ exports.submitSolution = async (req, res) => {
 exports.getProblemSubmissionSummary = async (req, res) => {
   try {
     const { problemId } = req.params;
-    const problem = await Problem.findById(problemId).select("title subject");
-    if (!problem) {
-      return res.status(404).json({ message: "Problem not found" });
+    const access = await verifyTeacherProblemAccess(problemId, req.user);
+    if (access.error) {
+      return res.status(access.error.status).json({ message: access.error.message });
     }
-
-    const assignedSubject = await Subject.findOne({
-      name: problem.subject,
-      assignedTeacher: req.user._id
-    }).select("_id year semester");
-
-    if (!assignedSubject) {
-      return res.status(403).json({ message: "Not allowed to assess this subject" });
-    }
+    const { problem, assignedSubject } = access;
 
     const accessFilter = buildStudentAccessFilter({
       year: problem.year || assignedSubject.year,
@@ -125,12 +266,9 @@ exports.getProblemSubmissionSummary = async (req, res) => {
       .select("name email isActive year semester")
       .sort({ name: 1 });
 
-    const submissions = await Submission.find({
-      problem: problemId,
-      status: "passed"
-    })
-      .sort({ createdAt: -1 })
-      .select("student score createdAt");
+    const submissions = await Submission.find({ problem: problemId })
+      .sort({ updatedAt: -1 })
+      .select("student status score queryPending queryStatus teacherAnsweredAt createdAt updatedAt");
 
     const latestByStudent = new Map();
     for (const sub of submissions) {
@@ -142,12 +280,18 @@ exports.getProblemSubmissionSummary = async (req, res) => {
       const latest = latestByStudent.get(student._id.toString());
       return {
         id: student._id,
+        submissionId: latest ? latest._id : null,
         name: student.name,
         email: student.email,
         isActive: student.isActive,
-        hasPassed: Boolean(latest),
+        hasSubmitted: Boolean(latest),
+        queryPending: latest ? Boolean(latest.queryPending) : false,
+        queryStatus: latest ? latest.queryStatus : "none",
+        teacherAnsweredAt: latest ? latest.teacherAnsweredAt : null,
+        hasPassed: latest ? latest.status === "passed" : false,
+        submissionStatus: latest ? latest.status : "pending",
         score: latest ? latest.score : 0,
-        submittedAt: latest ? latest.createdAt : null
+        submittedAt: latest ? latest.updatedAt || latest.createdAt : null
       };
     });
 
@@ -162,6 +306,346 @@ exports.getProblemSubmissionSummary = async (req, res) => {
   } catch (error) {
     console.error("Summary failed:", error.message);
     res.status(500).json({ message: "Failed to load submission summary" });
+  }
+};
+
+exports.getSubmissionByIdForTeacher = async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+
+    const submission = await Submission.findById(submissionId)
+      .populate("problem", "title subject year semester createdBy")
+      .populate("student", "name email year semester isActive role")
+      .populate("comments.author", "name email")
+      .lean();
+
+    if (!submission) {
+      return res.status(404).json({ message: "Submission not found" });
+    }
+
+    const access = await verifyTeacherProblemAccess(submission.problem?._id, req.user);
+    if (access.error) {
+      return res.status(access.error.status).json({ message: access.error.message });
+    }
+
+    const studentId = submission.student?._id || submission.student;
+    const populatedStudent =
+      submission.student && typeof submission.student === "object" && submission.student.role === "student"
+        ? submission.student
+        : null;
+
+    let student = populatedStudent;
+    if (!student && studentId) {
+      student = await User.findOne({
+        _id: studentId,
+        role: "student"
+      }).select("name email year semester isActive");
+    }
+
+    if (student) {
+      const studentAccess = ensureStudentMatchesAccess(student, {
+        year: submission.problem?.year || access.assignedSubject.year,
+        semester: submission.problem?.semester || access.assignedSubject.semester
+      });
+      if (!studentAccess.ok) {
+        return res.status(studentAccess.status).json({ message: studentAccess.message });
+      }
+    }
+
+    res.json({
+      problem: {
+        id: submission.problem?._id,
+        title: submission.problem?.title,
+        subject: submission.problem?.subject
+      },
+      student: student || {
+        _id: String(studentId || ""),
+        name: "Unknown Student",
+        email: "",
+        year: "",
+        semester: "",
+        isActive: false
+      },
+      submission: {
+        id: submission._id,
+        sourceCode: getDisplaySourceCode(submission),
+        studentSourceCode: submission.studentSourceCode || submission.sourceCode,
+        teacherReviewedCode: submission.teacherReviewedCode || "",
+        languageId: submission.languageId,
+        status: submission.status,
+        score: submission.score,
+        passedCount: submission.passedCount,
+        totalCount: submission.totalCount,
+        queryPending: Boolean(submission.queryPending),
+        queryStatus: submission.queryStatus || "none",
+        teacherAnsweredAt: submission.teacherAnsweredAt,
+        lastSavedBy: submission.lastSavedBy || "student",
+        comments: mapSubmissionComments(submission.comments),
+        createdAt: submission.createdAt,
+        updatedAt: submission.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error("Teacher submission by id fetch failed:", error.message);
+    res.status(500).json({ message: "Failed to load submission code" });
+  }
+};
+
+exports.getLatestSubmissionForTeacher = async (req, res) => {
+  try {
+    const { problemId, studentId } = req.params;
+    const access = await verifyTeacherProblemAccess(problemId, req.user);
+    if (access.error) {
+      return res.status(access.error.status).json({ message: access.error.message });
+    }
+
+    let submission = null;
+    let student = null;
+
+    // Preferred lookup: use the actual submission document for this problem and student.
+    submission = await Submission.findOne({
+      problem: problemId,
+      student: studentId
+    })
+      .sort({ updatedAt: -1 })
+      .populate("student", "name email year semester isActive role")
+      .populate("comments.author", "name email")
+      .lean();
+
+    // Fallback: some deep links may pass a submission id instead of a student id.
+    if (!submission) {
+      submission = await Submission.findOne({
+        _id: studentId,
+        problem: problemId
+      })
+      .sort({ updatedAt: -1 })
+      .populate("student", "name email year semester isActive role")
+      .populate("comments.author", "name email")
+      .lean();
+    }
+
+    if (!submission) {
+      const directStudent = await User.findOne({
+        _id: studentId,
+        role: "student"
+      }).select("name email year semester isActive");
+
+      if (!directStudent) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      submission = await Submission.findOne({
+        problem: problemId,
+        student: directStudent._id
+      })
+        .sort({ updatedAt: -1 })
+        .populate("student", "name email year semester isActive role")
+        .populate("comments.author", "name email")
+        .lean();
+
+      if (!submission) {
+        return res.status(404).json({ message: "No submission found for this student and problem" });
+      }
+    }
+
+    const submissionStudentId = submission.student?._id || submission.student;
+    const populatedStudent =
+      submission.student && typeof submission.student === "object" && submission.student.role === "student"
+        ? submission.student
+        : null;
+
+    student = populatedStudent;
+    if (!student && submissionStudentId) {
+      student = await User.findOne({
+        _id: submissionStudentId,
+        role: "student"
+      }).select("name email year semester isActive");
+    }
+
+    if (student) {
+      const studentAccess = ensureStudentMatchesAccess(student, {
+        year: access.problem.year || access.assignedSubject.year,
+        semester: access.problem.semester || access.assignedSubject.semester
+      });
+      if (!studentAccess.ok) {
+        return res.status(studentAccess.status).json({ message: studentAccess.message });
+      }
+    }
+
+    res.json({
+      problem: {
+        id: access.problem._id,
+        title: access.problem.title,
+        subject: access.problem.subject
+      },
+      student: student || {
+        _id: String(submissionStudentId || studentId || ""),
+        name: "Unknown Student",
+        email: "",
+        year: "",
+        semester: "",
+        isActive: false
+      },
+      submission: {
+        id: submission._id,
+        sourceCode: getDisplaySourceCode(submission),
+        studentSourceCode: submission.studentSourceCode || submission.sourceCode,
+        teacherReviewedCode: submission.teacherReviewedCode || "",
+        languageId: submission.languageId,
+        status: submission.status,
+        score: submission.score,
+        passedCount: submission.passedCount,
+        totalCount: submission.totalCount,
+        queryPending: Boolean(submission.queryPending),
+        queryStatus: submission.queryStatus || "none",
+        teacherAnsweredAt: submission.teacherAnsweredAt,
+        lastSavedBy: submission.lastSavedBy || "student",
+        comments: mapSubmissionComments(submission.comments),
+        createdAt: submission.createdAt,
+        updatedAt: submission.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error("Teacher submission fetch failed:", error.message);
+    res.status(500).json({ message: "Failed to load submission code" });
+  }
+};
+
+exports.getStudentSubmissionForProblem = async (req, res) => {
+  try {
+    const { problemId } = req.params;
+    const submission = await Submission.findOne({
+      student: req.user._id,
+      problem: problemId
+    })
+      .populate("comments.author", "name email")
+      .lean();
+
+    if (!submission) {
+      return res.json({ submission: null });
+    }
+
+    res.json({
+      submission: {
+        id: submission._id,
+        sourceCode: getDisplaySourceCode(submission),
+        studentSourceCode: submission.studentSourceCode || submission.sourceCode,
+        teacherReviewedCode: submission.teacherReviewedCode || "",
+        languageId: submission.languageId,
+        status: submission.status,
+        score: submission.score,
+        passedCount: submission.passedCount,
+        totalCount: submission.totalCount,
+        queryPending: Boolean(submission.queryPending),
+        queryStatus: submission.queryStatus || "none",
+        teacherAnsweredAt: submission.teacherAnsweredAt,
+        lastSavedBy: submission.lastSavedBy || "student",
+        comments: mapSubmissionComments(submission.comments),
+        createdAt: submission.createdAt,
+        updatedAt: submission.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error("Student submission fetch failed:", error.message);
+    res.status(500).json({ message: "Failed to load saved code" });
+  }
+};
+
+exports.addTeacherComment = async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const commentText = String(req.body.comment || "").trim();
+    if (!commentText) {
+      return res.status(400).json({ message: "Comment is required" });
+    }
+
+    const submission = await Submission.findById(submissionId).populate("problem", "_id title subject year semester createdBy");
+    if (!submission) {
+      return res.status(404).json({ message: "Submission not found" });
+    }
+
+    const access = await verifyTeacherProblemAccess(submission.problem?._id, req.user);
+    if (access.error) {
+      return res.status(access.error.status).json({ message: access.error.message });
+    }
+
+    submission.comments.push({
+      author: req.user._id,
+      authorRole: "teacher",
+      text: commentText
+    });
+    submission.queryPending = false;
+    submission.queryStatus = "answered";
+    submission.teacherAnsweredAt = new Date();
+    submission.lastSavedBy = "teacher";
+    await submission.save();
+    await submission.populate("comments.author", "name email");
+
+    res.json({
+      message: "Comment added successfully.",
+      submission: {
+        id: submission._id,
+        queryPending: Boolean(submission.queryPending),
+        comments: mapSubmissionComments(submission.comments)
+      }
+    });
+  } catch (error) {
+    console.error("Teacher comment failed:", error.message);
+    res.status(500).json({ message: "Failed to add comment" });
+  }
+};
+
+exports.updateSubmissionCodeByTeacher = async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const { sourceCode, languageId, resolveQuery } = req.body;
+
+    if (!String(sourceCode || "").trim()) {
+      return res.status(400).json({ message: "sourceCode is required" });
+    }
+
+    const submission = await Submission.findById(submissionId).populate("problem", "_id title subject year semester createdBy");
+    if (!submission) {
+      return res.status(404).json({ message: "Submission not found" });
+    }
+
+    const access = await verifyTeacherProblemAccess(submission.problem?._id, req.user);
+    if (access.error) {
+      return res.status(access.error.status).json({ message: access.error.message });
+    }
+
+    submission.teacherReviewedCode = sourceCode;
+    submission.sourceCode = sourceCode;
+    if (languageId !== undefined && languageId !== null && Number.isFinite(Number(languageId))) {
+      submission.languageId = Number(languageId);
+    }
+    if (resolveQuery) {
+      submission.queryPending = false;
+      submission.queryStatus = "answered";
+      submission.teacherAnsweredAt = new Date();
+    }
+    submission.lastSavedBy = "teacher";
+
+    await submission.save();
+
+    res.json({
+      message: "Submission code updated successfully.",
+      submission: {
+        id: submission._id,
+        sourceCode: submission.sourceCode,
+        studentSourceCode: submission.studentSourceCode,
+        teacherReviewedCode: submission.teacherReviewedCode,
+        languageId: submission.languageId,
+        queryPending: Boolean(submission.queryPending),
+        queryStatus: submission.queryStatus || "none",
+        teacherAnsweredAt: submission.teacherAnsweredAt,
+        lastSavedBy: submission.lastSavedBy || "student",
+        updatedAt: submission.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error("Teacher submission code update failed:", error.message);
+    res.status(500).json({ message: "Failed to update submission code" });
   }
 };
 
@@ -265,16 +749,24 @@ exports.getStudentSubmissions = async (req, res) => {
 
     const solvedCount = submissions.filter((submission) => submission.status === "passed").length;
     const pendingCount = submissions.filter((submission) => submission.status !== "passed").length;
+    const pendingQueryCount = submissions.filter((submission) => submission.queryStatus === "open" || submission.queryStatus === "revised_by_student").length;
+    const answeredQueryCount = submissions.filter((submission) => submission.queryStatus === "answered").length;
 
     res.json({
       solvedCount,
       pendingCount,
+      pendingQueryCount,
+      answeredQueryCount,
       submissions: submissions.map((submission) => ({
         id: submission._id,
         status: submission.status,
         score: submission.score,
         passedCount: submission.passedCount,
         totalCount: submission.totalCount,
+        queryPending: Boolean(submission.queryPending),
+        queryStatus: submission.queryStatus || "none",
+        teacherAnsweredAt: submission.teacherAnsweredAt,
+        lastSavedBy: submission.lastSavedBy || "student",
         updatedAt: submission.updatedAt,
         createdAt: submission.createdAt,
         problem: submission.problem,

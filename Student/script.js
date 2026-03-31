@@ -9,7 +9,7 @@ const DEFAULT_EXECUTOR_BASE = API_BASE_URL;
 const EXECUTOR_BASE_URL = localStorage.getItem("EXECUTOR_BASE_URL") || DEFAULT_EXECUTOR_BASE;
 const PROBLEMS_BASE_URL = localStorage.getItem("PROBLEMS_BASE_URL") || API_BASE_URL;
 const AUTH_BASE_URL = localStorage.getItem("AUTH_BASE_URL") || API_BASE_URL;
-const LOGIN_PAGE = "login.html";
+const LOGIN_PAGE = "index.html";
 
 const EXECUTOR_FALLBACK_URLS = [
   EXECUTOR_BASE_URL,
@@ -81,6 +81,8 @@ let currentProblem = null;
 let currentLanguageId = null;
 let canSubmit = false;
 let isSubmitting = false;
+let isSavingCode = false;
+let draftSaveTimer = null;
 
 function setSubmitEnabled(enabled, message) {
   canSubmit = enabled;
@@ -93,6 +95,207 @@ function markSubmissionDirty(message) {
   const visibleCount = (currentProblem.testCases || []).length;
   if (visibleCount > 0) {
     setSubmitEnabled(false, message || "Run visible test cases to enable submission.");
+  }
+}
+
+function setCommentStatus(message) {
+  const status = document.getElementById("comment-status");
+  if (status) status.textContent = message || "";
+}
+
+function setQueryAnsweredBanner(message) {
+  const banner = document.getElementById("query-answer-banner");
+  if (!banner) return;
+
+  if (message) {
+    banner.style.display = "block";
+    banner.textContent = message;
+  } else {
+    banner.style.display = "none";
+    banner.textContent = "";
+  }
+}
+
+function getDraftStorageKey(problemId) {
+  return `student_draft_${problemId || "unknown"}`;
+}
+
+function saveDraftLocally() {
+  if (!currentProblem?._id || !window.editor) return;
+  const payload = {
+    sourceCode: window.editor.getValue(),
+    languageId: currentLanguageId || "",
+    savedAt: new Date().toISOString()
+  };
+  localStorage.setItem(getDraftStorageKey(currentProblem._id), JSON.stringify(payload));
+}
+
+function scheduleLocalDraftSave() {
+  if (draftSaveTimer) {
+    window.clearTimeout(draftSaveTimer);
+  }
+  draftSaveTimer = window.setTimeout(() => {
+    saveDraftLocally();
+  }, 1200);
+}
+
+function loadLocalDraft(problemId) {
+  try {
+    const raw = localStorage.getItem(getDraftStorageKey(problemId));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearLocalDraft(problemId) {
+  localStorage.removeItem(getDraftStorageKey(problemId));
+}
+
+async function loadSavedSubmission() {
+  if (!currentProblem?._id) {
+    setCommentStatus("Load a problem, write your query in code comments, then save.");
+    setQueryAnsweredBanner("");
+    return;
+  }
+
+  const token = localStorage.getItem("studentToken");
+  if (!token) return;
+
+  setCommentStatus("Fetching your last saved code...");
+
+  try {
+    const res = await fetch(`${PROBLEMS_BASE_URL}/api/submissions/me/problem/${encodeURIComponent(currentProblem._id)}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || "Failed to load saved code");
+    }
+
+    const submission = data.submission;
+    if (!submission) {
+      setCommentStatus("No saved code yet for this problem.");
+      const queryToggle = document.getElementById("save-query-toggle");
+      if (queryToggle) queryToggle.checked = false;
+      const localDraft = loadLocalDraft(currentProblem._id);
+      if (localDraft?.sourceCode && window.editor) {
+        window.editor.setValue(localDraft.sourceCode);
+        if (localDraft.languageId && languageSelect) {
+          currentLanguageId = String(localDraft.languageId);
+          languageSelect.value = String(localDraft.languageId);
+        }
+        setCommentStatus(`Local draft restored from ${new Date(localDraft.savedAt).toLocaleString()}.`);
+      }
+      setQueryAnsweredBanner("");
+      return;
+    }
+
+    if (window.editor && submission.sourceCode) {
+      window.editor.setValue(submission.sourceCode);
+    }
+
+    if (submission.languageId && languageSelect) {
+      currentLanguageId = String(submission.languageId);
+      languageSelect.value = String(submission.languageId);
+    }
+
+    const queryToggle = document.getElementById("save-query-toggle");
+    if (queryToggle) {
+      queryToggle.checked = Boolean(submission.queryPending);
+    }
+    setCommentStatus(
+      submission.queryStatus === "revised_by_student"
+        ? "You revised the code after a teacher answer. Save again with query if you need another review."
+        : submission.queryStatus === "open"
+          ? "This saved code is marked as having a query. Teacher can answer inside the code comments."
+          : submission.queryStatus === "answered"
+            ? "Teacher answered in the reviewed code comments."
+            : "Saved code loaded successfully."
+    );
+    setQueryAnsweredBanner(
+      !submission.queryPending && submission.teacherAnsweredAt
+        ? `Your query was answered on ${new Date(submission.teacherAnsweredAt).toLocaleString()}. Check the code comments below.`
+        : ""
+    );
+
+    const localDraft = loadLocalDraft(currentProblem._id);
+    if (
+      localDraft?.sourceCode &&
+      localDraft.savedAt &&
+      submission.updatedAt &&
+      new Date(localDraft.savedAt) > new Date(submission.updatedAt)
+    ) {
+      window.editor.setValue(localDraft.sourceCode);
+      if (localDraft.languageId && languageSelect) {
+        currentLanguageId = String(localDraft.languageId);
+        languageSelect.value = String(localDraft.languageId);
+      }
+      setCommentStatus(`Newer local draft restored from ${new Date(localDraft.savedAt).toLocaleString()}.`);
+    }
+  } catch (error) {
+    console.error("Failed to load saved submission:", error);
+    setCommentStatus("Saved code is unavailable right now.");
+    setQueryAnsweredBanner("");
+  }
+}
+
+async function saveCode() {
+  if (isSavingCode || !currentProblem?._id) return;
+
+  const button = document.getElementById("save-btn");
+  const queryToggle = document.getElementById("save-query-toggle");
+  const token = localStorage.getItem("studentToken");
+  const source_code = window.editor.getValue();
+  const language_id = currentLanguageId;
+  const hasQuery = Boolean(queryToggle?.checked);
+
+  if (!token) {
+    alert("Your session has expired. Please log in again.");
+    return;
+  }
+
+  if (!language_id) {
+    alert("Select a language first!");
+    return;
+  }
+
+  isSavingCode = true;
+  if (button) button.disabled = true;
+  setCommentStatus("Saving your code...");
+
+  try {
+    const res = await fetch(`${PROBLEMS_BASE_URL}/api/submissions/save`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        problemId: currentProblem._id,
+        source_code,
+        language_id: parseInt(language_id, 10),
+        hasQuery
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || "Failed to save code");
+    }
+
+    setCommentStatus(data.message || "Code saved successfully.");
+    clearLocalDraft(currentProblem._id);
+    await loadSavedSubmission();
+  } catch (error) {
+    console.error("Failed to save code:", error);
+    setCommentStatus(error.message || "Failed to save code.");
+  } finally {
+    isSavingCode = false;
+    if (button) button.disabled = false;
   }
 }
 
@@ -115,6 +318,7 @@ require(["vs/editor/editor.main"], async function () {
   if (window.editor) {
     window.editor.onDidChangeModelContent(() => {
       markSubmissionDirty("Code changed. Run visible test cases again.");
+      scheduleLocalDraftSave();
     });
   }
 });
@@ -376,6 +580,7 @@ async function loadProblem() {
       if (stmtSection) stmtSection.style.display = "none";
       await loadProblemList();
       setSubmitEnabled(false, "Select a problem to get started");
+      setCommentStatus("Load a problem, write your query in code comments, then save.");
       return;
     }
 
@@ -447,10 +652,13 @@ async function loadProblem() {
       setSubmitEnabled(false, "Run visible test cases to enable submission.");
     }
 
+    await loadSavedSubmission();
+
   } catch (error) {
     console.error("Error loading problem:", error);
     setSubmitEnabled(false, "Failed to load problem");
     document.getElementById("problem-description").textContent = "Error loading problem details. " + error.message;
+    setCommentStatus("Saved comments are unavailable because the problem could not be loaded.");
   }
 }
 
@@ -471,7 +679,7 @@ document.getElementById("run-btn").addEventListener("click", async () => {
   outputContent.textContent = "";
 
   try {
-    const res = await fetch(`${EXECUTOR_BASE_URL}/api/execute`, {
+    const res = await fetchWithExecutor("/api/execute", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ source_code, language_id: parseInt(language_id), stdin }),
@@ -565,6 +773,7 @@ document.getElementById("submit-btn").addEventListener("click", async () => {
       statusText.textContent = "Hidden test cases failed.";
       outputContent.textContent = `Passed ${data.passedCount}/${data.totalCount} hidden test cases. Fix and try again.`;
     }
+    clearLocalDraft(currentProblem._id);
   } catch (error) {
     console.error(error);
     statusText.textContent = "Submission failed.";
@@ -610,7 +819,7 @@ document.getElementById("run-all-btn")?.addEventListener("click", async () => {
 
   for (let i = 0; i < testCases.length; i++) {
     try {
-      const res = await fetch(`${EXECUTOR_BASE_URL}/api/execute`, {
+      const res = await fetchWithExecutor("/api/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -674,4 +883,6 @@ document.getElementById("run-all-btn")?.addEventListener("click", async () => {
     setSubmitEnabled(false, "Visible test cases failed. Fix and rerun to submit.");
   }
 });
+
+document.getElementById("save-btn")?.addEventListener("click", saveCode);
 

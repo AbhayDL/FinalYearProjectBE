@@ -12,7 +12,7 @@ function ensureLoggedIn() {
   const token = localStorage.getItem("studentToken");
   const userStr = localStorage.getItem("studentUser");
   if (!token || !userStr) {
-    window.location.href = "login.html";
+    window.location.href = "index.html";
     return false;
   }
 
@@ -37,7 +37,7 @@ function logout() {
   localStorage.removeItem("studentUser");
   localStorage.removeItem("studentEmail");
   sessionStorage.removeItem("studentSession");
-  window.location.href = "login.html";
+  window.location.href = "index.html";
 }
 
 // ============================
@@ -101,6 +101,10 @@ async function loadDashboardData() {
     if (submissionsRes.ok) {
       const submissionData = await submissionsRes.json();
       document.getElementById("solved-problems").textContent = submissionData.solvedCount || 0;
+      const pendingQueriesEl = document.getElementById("pending-queries-count");
+      const answeredQueriesEl = document.getElementById("answered-queries-count");
+      if (pendingQueriesEl) pendingQueriesEl.textContent = submissionData.pendingQueryCount || 0;
+      if (answeredQueriesEl) answeredQueriesEl.textContent = submissionData.answeredQueryCount || 0;
       renderRecentStudentActivity(submissionData.submissions || []);
     } else {
       document.getElementById("solved-problems").textContent = "0";
@@ -127,8 +131,8 @@ function renderRecentStudentActivity(submissions) {
 
   activityList.innerHTML = submissions.slice(0, 5).map((submission) => `
     <div class="activity-item">
-      <i class="fas ${submission.status === "passed" ? "fa-check-circle" : "fa-hourglass-half"}"></i>
-      <span>${submission.problem?.title || "Problem"} - ${submission.status}</span>
+      <i class="fas ${submission.status === "passed" ? "fa-check-circle" : (submission.queryStatus === "answered" ? "fa-comment-dots" : "fa-hourglass-half")}"></i>
+      <span>${submission.problem?.title || "Problem"} - ${formatSubmissionStatus(submission.status, submission.queryStatus)}</span>
     </div>
   `).join("");
 }
@@ -225,7 +229,7 @@ function renderTasksForSubject(allProblems, subject) {
 
 
 function solveProblem(problemId) {
-  window.location.href = `index.html?problem_id=${problemId}`;
+  window.location.href = `submission-ide.html?problem_id=${problemId}`;
 }
 
 async function fetchProblemsForYearSemester(year, semester) {
@@ -407,6 +411,7 @@ async function loadSubmissions() {
         return {
           title: problem.title || "Problem",
           status,
+          queryStatus: submission?.queryStatus || "none",
           updatedAt: submission?.updatedAt || null,
           score: submission?.score || 0
         };
@@ -443,7 +448,7 @@ async function loadSubmissions() {
                 <span class="submission-meta">${task.updatedAt ? `Updated: ${new Date(task.updatedAt).toLocaleString()}` : "Not submitted yet"}</span>
               </div>
               <div class="subject-task-status">
-                <span class="status ${mapSubmissionStatus(task.status)}">${formatSubmissionStatus(task.status)}</span>
+                <span class="status ${mapSubmissionStatus(task.status, task.queryStatus)}">${formatSubmissionStatus(task.status, task.queryStatus)}</span>
                 <span class="task-score">Score: ${task.score}</span>
               </div>
             </div>
@@ -457,14 +462,19 @@ async function loadSubmissions() {
   }
 }
 
-function mapSubmissionStatus(status) {
+function mapSubmissionStatus(status, queryStatus = "none") {
   if (status === "passed") return "accepted";
+  if (queryStatus === "open" || queryStatus === "revised_by_student") return "query";
+  if (queryStatus === "answered") return "info";
   if (status === "failed") return "rejected";
   return "pending";
 }
 
-function formatSubmissionStatus(status) {
+function formatSubmissionStatus(status, queryStatus = "none") {
   if (status === "passed") return "Completed";
+  if (queryStatus === "open") return "Query Sent";
+  if (queryStatus === "revised_by_student") return "Query Revised";
+  if (queryStatus === "answered") return "Answered";
   if (status === "failed") return "Attempted";
   return "Pending";
 }
@@ -530,7 +540,7 @@ async function saveProfile() {
 // ============================
 // 🎛️ NAVIGATION
 // ============================
-function showSection(sectionName) {
+function showSection(sectionName, event) {
   // Hide all sections
   document.querySelectorAll(".section").forEach(section => {
     section.classList.remove("active");
@@ -545,7 +555,17 @@ function showSection(sectionName) {
   document.getElementById(`${sectionName}-section`).classList.add("active");
 
   // Add active class to clicked nav item
-  event.target.closest(".nav-item").classList.add("active");
+  const clickedNavItem = event?.target?.closest(".nav-item");
+  if (clickedNavItem) {
+    clickedNavItem.classList.add("active");
+  } else {
+    document.querySelectorAll(".nav-item").forEach((item) => {
+      const targetSection = item.getAttribute("onclick") || "";
+      if (targetSection.includes(`showSection('${sectionName}')`)) {
+        item.classList.add("active");
+      }
+    });
+  }
 
   // Load section data
   switch(sectionName) {

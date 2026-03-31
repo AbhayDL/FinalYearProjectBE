@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Details - Teacher</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="navbar">
+    <div class="navbar-inner">
+      <button class="back-btn" onclick="goBack()">Back to Students</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="page-header">
+      <div>
+        <h1 id="studentName">Student Details</h1>
+        <p class="muted" id="studentSubtitle">Loading student overview...</p>
+      </div>
+      <div id="statusMessage" class="status-message" aria-live="polite"></div>
+    </div>
+
+    <section class="summary-grid" id="summaryGrid">
+      <div class="summary-card">
+        <span class="summary-label">Total Submissions</span>
+        <strong id="totalSubmissions">0</strong>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Solved</span>
+        <strong id="solvedCount">0</strong>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Pending Queries</span>
+        <strong id="queryCount">0</strong>
+      </div>
+    </section>
+
+    <section class="detail-layout">
+      <article class="detail-card">
+        <h2>Student Information</h2>
+        <div class="detail-list" id="studentInfo"></div>
+      </article>
+
+      <article class="detail-card">
+        <h2>Submission Overview</h2>
+        <div class="detail-list" id="studentOverview"></div>
+      </article>
+    </section>
+
+    <section class="detail-card submissions-section">
+      <div class="section-title-row">
+        <h2>Submissions</h2>
+        <button class="refresh-btn" onclick="loadStudentOverview()">Refresh</button>
+      </div>
+      <div id="submissionList" class="students-list"></div>
+    </section>
+  </div>
+
+  <script src="student-detail.js"></script>
+</body>
+</html>

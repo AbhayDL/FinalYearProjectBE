@@ -3,150 +3,88 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CodeRunner Pro - Advanced Code Execution Environment</title>
-
-  <!-- External Libraries -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.2/marked.min.js"></script>
-
-  <!-- Local Styles -->
-  <link rel="stylesheet" href="style.css">
+  <title>CodeAssPlat Login</title>
+  <link rel="stylesheet" href="login.css">
 </head>
-<body class="ide-page">
-  <div class="container">
-    <header class="ide-header">
-      <div class="ide-header-bar">
-        <div class="ide-brand">
-          <h1><i class="fas fa-rocket"></i> CodeRunner</h1>
-          <p class="tagline"><i class="fas fa-book-open"></i> Problem Statement</p>
-        </div>
-        <a href="dashboard.html" class="btn-primary back-link">
-          <i class="fas fa-arrow-left"></i> Back to Dashboard
-        </a>
+<body>
+  <div class="background-pattern"></div>
+
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <h1 id="loginTitle">Student Login</h1>
+        <p id="loginSubtitle">Login to continue coding.</p>
       </div>
-    </header>
 
-    <!-- Problem List (select a problem to solve) -->
-    <section class="problem-list-section" id="problem-list-section">
-      <div class="panel">
-        <div class="panel-header">
-          <h2 class="panel-title"><i class="fas fa-list"></i> Available Problems</h2>
-        </div>
-        <div id="problem-list" class="problem-list">
-          Loading problems...
-        </div>
+      <div class="role-switch" role="tablist" aria-label="Login role">
+        <button type="button" class="role-tab active" data-role="student" onclick="setRole('student')">Student</button>
+        <button type="button" class="role-tab" data-role="teacher" onclick="setRole('teacher')">Teacher</button>
       </div>
-    </section>
 
-    <!-- Problem Statement Section -->
-    <div class="problem-statement">
-      <div class="problem-header">
-        <h1 id="problem-title">Problem Title</h1>
-      </div>
-      
-      <div class="problem-tags">
-        <span class="tag tag-difficulty" id="display-difficulty">Difficulty</span>
-        <span class="tag tag-subject" id="display-subject">Subject</span>
-        <span class="tag tag-year" id="display-year">Year</span>
-        <span class="tag tag-submission" id="display-semester">Submission</span>
-      </div>
-      
-
-      <div class="problem-details">
-        <div class="detail-section">
-          <h3>DESCRIPTION</h3>
-          <p id="problem-description">Select a problem to view details.</p>
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            class="input"
+            placeholder="Enter your email"
+            required
+          />
+          <span class="error-message" id="emailError"></span>
         </div>
 
-        <div class="detail-section">
-          <h3>INPUT FORMAT</h3>
-          <p id="input-format">-</p>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="password-input-wrapper">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              class="input password-input"
+              placeholder="Enter your password"
+              required
+            />
+            <button type="button" class="toggle-password" onclick="togglePassword()">Show</button>
+          </div>
+          <span class="error-message" id="passwordError"></span>
         </div>
 
-        <div class="detail-section">
-          <h3>OUTPUT FORMAT</h3>
-          <p id="output-format">-</p>
+        <div class="form-options">
+          <label class="remember-me">
+            <input type="checkbox" id="rememberMe" name="rememberMe" />
+            <span>Remember me</span>
+          </label>
+          <a href="../Admin/login.html" class="admin-login-link">Admin Login</a>
         </div>
 
-        <div class="detail-section">
-          <h3>CONSTRAINTS</h3>
-          <ul id="constraints-list"></ul>
-        </div>
+        <button type="submit" class="login-btn" id="loginButton">Login</button>
+      </form>
+
+      <div class="divider">
+        <span id="loginHelper">Use your student account created by admin.</span>
       </div>
     </div>
 
-    <!-- Main Content: Editor and Output -->
-    <div class="main-layout">
-      <!-- Code Editor Panel -->
-      <div class="panel editor-panel">
-        <div class="panel-header">
-          <h2 class="panel-title"><i class="fas fa-code"></i> Code Editor</h2>
-        </div>
-        
-        <div class="editor-container">
-          <div id="editor"></div>
-        </div>
-
-        <div class="editor-footer">
-          <div class="editor-controls">
-            <select id="language-select">
-              <option value="">Select language...</option>
-            </select>
-            <button class="run-btn" id="run-btn"><i class="fas fa-play"></i> Run Code</button>
-            <button class="submit-btn" id="submit-btn"><i class="fas fa-paper-plane"></i> Submit Code</button>
-            <button class="clear-btn" id="clear-btn"><i class="fas fa-eraser"></i> Clear</button>
-          </div>
-
-          <div class="stdin-container">
-            <h3><i class="fas fa-keyboard"></i> INPUT (STDIN)</h3>
-            <textarea id="stdin-input" placeholder="Enter custom input for testing..."></textarea>
-          </div>
-        </div>
-      </div>
-
-      <!-- Output Panel -->
-      <div class="right-panel">
-        <!-- Output Section -->
-        <div class="panel output-panel">
-          <div class="panel-header">
-            <h2 class="panel-title"><i class="fas fa-terminal"></i> Output</h2>
-          </div>
-          <div class="tab-content" id="output-content">Ready to run your code.</div>
-          <div class="status" id="status">
-            <i class="fas fa-info-circle"></i>
-            <span id="status-text">Ready to execute code.</span>
-          </div>
-        </div>
-
-        <!-- Test Cases Section -->
-        <div class="panel test-cases-panel">
-          <div class="panel-header">
-            <h2 class="panel-title"><i class="fas fa-tasks"></i> Test Cases</h2>
-            <button class="run-all-btn" id="run-all-btn"><i class="fas fa-play"></i> Run All</button>
-          </div>
-          <div class="test-cases-content" id="test-cases-content">
-            No test cases yet. Run code to see results.
-          </div>
-        </div>
-
-        <!-- Errors Section -->
-        <div class="panel errors-panel" style="display: none;">
-          <div class="panel-header">
-            <h2 class="panel-title"><i class="fas fa-exclamation-circle"></i> Errors</h2>
-          </div>
-          <div class="tab-content" id="errors-content">No errors.</div>
-        </div>
+    <div id="errorModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h2>Login Failed</h2>
+        <p id="errorMessage"></p>
+        <button class="modal-btn" onclick="closeModal()">Try Again</button>
       </div>
     </div>
 
-    <div class="footer">
-      <p><strong>CodeRunner</strong> </p>
-      <p>Powered by Monaco Editor & Judge0 API</p>
+    <div id="successModal" class="modal">
+      <div class="modal-content success">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h2>Login Successful</h2>
+        <p id="successMessage">Redirecting...</p>
+      </div>
     </div>
   </div>
 
-  <!-- Local Script -->
-  <script src="script.js"></script>
+  <script src="login.js"></script>
 </body>
 </html>

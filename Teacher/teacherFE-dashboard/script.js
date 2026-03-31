@@ -4,6 +4,7 @@
 const DEFAULT_BASE_URL = localStorage.getItem("API_BASE_URL") || "http://localhost:4000";
 const PROBLEMS_BASE_URL = localStorage.getItem("PROBLEMS_BASE_URL") || DEFAULT_BASE_URL;
 const AUTH_BASE_URL = localStorage.getItem("AUTH_BASE_URL") || DEFAULT_BASE_URL;
+const TEACHER_LOGIN_URL = "../../Student/index.html?role=teacher";
 
 function getBaseUrl(base) {
   try {
@@ -24,7 +25,7 @@ function ensureLoggedIn() {
   const token = localStorage.getItem("teacherToken");
   const userStr = localStorage.getItem("teacherUser");
   if (!token || !userStr) {
-    window.location.href = '../teacherFE-login/index.html';
+    window.location.href = TEACHER_LOGIN_URL;
     return false;
   }
 
@@ -51,7 +52,7 @@ function handleLogout() {
     localStorage.removeItem('teacherEmail');
     localStorage.removeItem('teacherRememberMe');
     sessionStorage.clear();
-    window.location.href = '../teacherFE-login/index.html';
+    window.location.href = TEACHER_LOGIN_URL;
   }
 }
 
@@ -164,6 +165,8 @@ async function loadDashboardData() {
       document.getElementById("total-students").textContent = analytics.totalStudents;
       document.getElementById("total-submissions").textContent = analytics.totalSubmissions;
       document.getElementById("total-problems").textContent = analytics.totalProblems || 0;
+      const pendingQueriesEl = document.getElementById("pending-queries");
+      if (pendingQueriesEl) pendingQueriesEl.textContent = analytics.pendingQueries || 0;
       loadRecentActivity(analytics.recentActivity || []);
     }
 
@@ -184,7 +187,7 @@ async function loadRecentActivity(activities) {
 
   activityList.innerHTML = activities.map((activity) => `
     <div class="activity-item">
-      <i class="fas ${activity.type === "submission" ? "fa-check-circle" : "fa-plus-circle"}"></i>
+      <i class="fas ${activity.type === "submission" ? "fa-check-circle" : (activity.type === "query" ? "fa-circle-question" : "fa-plus-circle")}"></i>
       <span>${escapeHtml(activity.message || "Recent activity")}</span>
       <span class="activity-time">${new Date(activity.createdAt).toLocaleString()}</span>
     </div>
@@ -345,11 +348,8 @@ function filterStudents() {
 }
 
 function viewStudentDetails(studentId) {
-  const student = teacherStudents.find((entry) => entry._id === studentId);
-  if (!student) return;
-  alert(
-    `Student Profile\n\nName: ${student.name}\nEmail: ${student.email}\nYear: ${student.year || "Not set"}\nSemester: ${student.semester || "Not set"}\nStatus: ${student.isActive ? "Active" : "Inactive"}`
-  );
+  if (!studentId) return;
+  window.location.href = `../teacherFE-students/student-detail.html?student_id=${encodeURIComponent(studentId)}`;
 }
 
 function toggleStudentStatus(studentId) {
@@ -387,7 +387,7 @@ function toggleStudentStatus(studentId) {
 // ============================
 async function loadReports() {
   try {
-    const reportsRes = await fetch(`${AUTH_BASE_URL}/api/teacher/reports-summary`, {
+    const reportsRes = await fetch(`${EFFECTIVE_AUTH_BASE}/api/teacher/reports-summary`, {
       headers: { Authorization: `Bearer ${localStorage.getItem("teacherToken")}` }
     });
 
