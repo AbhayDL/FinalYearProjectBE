@@ -42,6 +42,23 @@ async function loadTeachers(selectedId) {
   }
 }
 
+async function loadDepartments(selectedDepartment) {
+  const departmentSelect = document.getElementById("subjectDepartment");
+  try {
+    const departmentRes = await authFetch(`${BASE_URL}/api/admin/departments`);
+    if (!departmentRes.ok) throw new Error("Failed to fetch departments");
+    const departments = await departmentRes.json();
+    departmentSelect.innerHTML =
+      '<option value="">Select Department</option>' +
+      departments
+        .map((department) => `<option value="${department.name}" ${selectedDepartment === department.name ? 'selected' : ''}>${department.name}${department.code ? ` (${department.code})` : ""}</option>`)
+        .join("");
+  } catch (error) {
+    departmentSelect.innerHTML = '<option value="">No departments found</option>';
+    console.error("Department list error:", error);
+  }
+}
+
 async function loadSubject() {
   const res = await authFetch(`${BASE_URL}/api/admin/subjects/${subjectId}`);
   if (!res.ok) {
@@ -55,6 +72,7 @@ async function loadSubject() {
   document.getElementById("subjectDesc").value = subject.description || "";
   document.getElementById("subjectYear").value = subject.year || "";
   document.getElementById("subjectSem").value = subject.semester || "";
+  await loadDepartments(subject.department || "");
   await loadTeachers(subject.assignedTeacher);
 }
 
@@ -64,12 +82,13 @@ async function updateSubject(e) {
   const code = document.getElementById("subjectCode").value;
   const description = document.getElementById("subjectDesc").value;
   const assignedTeacher = document.getElementById("subjectTeacher").value;
+  const department = document.getElementById("subjectDepartment").value;
   const year = document.getElementById("subjectYear").value;
   const semester = document.getElementById("subjectSem").value;
   const res = await authFetch(`${BASE_URL}/api/admin/subjects/${subjectId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, code, description, assignedTeacher, year, semester })
+    body: JSON.stringify({ name, code, description, assignedTeacher, department, year, semester })
   });
   if (res.ok) {
     alert("Subject updated successfully");

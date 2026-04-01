@@ -105,6 +105,12 @@
         <!-- Users Page -->
         <div id="users" class="page">
           <div class="page-header">
+            <button id="bulkAddStudentsBtn" class="btn btn-secondary">
+              <i class="fas fa-user-plus"></i> Bulk Add Students
+            </button>
+            <button id="unlockAcademicEditBtn" class="btn btn-secondary">
+              <i class="fas fa-unlock"></i> Enable Year/Sem Edit
+            </button>
             <button id="addUserBtn" class="btn btn-primary">
               <i class="fas fa-plus"></i> Add User
             </button>
@@ -115,10 +121,14 @@
         <!-- Subjects Page -->
         <div id="subjects" class="page">
           <div class="page-header">
+            <button id="addDepartmentBtn" class="btn btn-secondary">
+              <i class="fas fa-building"></i> Add Department
+            </button>
             <button id="addSubjectBtn" class="btn btn-primary">
               <i class="fas fa-plus"></i> Add Subject
             </button>
           </div>
+          <div id="departmentsList" class="table-container">Loading departments...</div>
           <div id="subjectsList" class="table-container">Loading...</div>
         </div>
 
@@ -229,6 +239,36 @@
             <option value="teacher">Teacher</option>
           </select>
         </div>
+        <div class="form-group">
+          <label>Department</label>
+          <select id="userDepartment">
+            <option value="">Select Department</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Year</label>
+          <select id="userYear">
+            <option value="">Select Year</option>
+            <option value="1st">1st Year</option>
+            <option value="2nd">2nd Year</option>
+            <option value="3rd">3rd Year</option>
+            <option value="4th">4th Year</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Semester</label>
+          <select id="userSemester">
+            <option value="">Select Semester</option>
+            <option value="Sem 1">Sem 1</option>
+            <option value="Sem 2">Sem 2</option>
+            <option value="Sem 3">Sem 3</option>
+            <option value="Sem 4">Sem 4</option>
+            <option value="Sem 5">Sem 5</option>
+            <option value="Sem 6">Sem 6</option>
+            <option value="Sem 7">Sem 7</option>
+            <option value="Sem 8">Sem 8</option>
+          </select>
+        </div>
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">Add User</button>
           <button type="button" class="btn btn-secondary close-btn">Cancel</button>
@@ -261,6 +301,12 @@
           <select id="subjectTeacher"></select>
         </div>
         <div class="form-group">
+          <label>Department</label>
+          <select id="subjectDepartment" required>
+            <option value="">Select Department</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>Year</label>
           <select id="subjectYear">
             <option value="">Select Year</option>
@@ -286,6 +332,136 @@
         </div>
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">Add Subject</button>
+          <button type="button" class="btn btn-secondary close-btn">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="bulkAddStudentsModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Bulk Add Students</h2>
+        <button class="close-btn">&times;</button>
+      </div>
+      <form id="bulkAddStudentsForm" class="modal-form">
+        <div class="form-group">
+          <label>Department</label>
+          <select id="bulkDepartment" required>
+            <option value="">Select Department</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Year</label>
+          <select id="bulkYear" required>
+            <option value="">Select Year</option>
+            <option value="1st">1st Year</option>
+            <option value="2nd">2nd Year</option>
+            <option value="3rd">3rd Year</option>
+            <option value="4th">4th Year</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Semester (Optional)</label>
+          <select id="bulkSemester">
+            <option value="">Select Semester</option>
+            <option value="Sem 1">Sem 1</option>
+            <option value="Sem 2">Sem 2</option>
+            <option value="Sem 3">Sem 3</option>
+            <option value="Sem 4">Sem 4</option>
+            <option value="Sem 5">Sem 5</option>
+            <option value="Sem 6">Sem 6</option>
+            <option value="Sem 7">Sem 7</option>
+            <option value="Sem 8">Sem 8</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Default Password</label>
+          <input type="text" id="bulkDefaultPassword" placeholder="Used when a row does not include password" required>
+        </div>
+        <div class="form-group">
+          <label>Import Excel File</label>
+          <input type="file" id="bulkStudentsFile" accept=".xlsx,.xls">
+          <small>Expected columns: `Name`, `Email`, `Password` (optional)</small>
+        </div>
+        <div class="form-group">
+          <label>Students Manual Entry</label>
+          <textarea id="bulkStudentsInput" rows="8" placeholder="One student per line: Name,Email,Password(optional)"></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Create Students</button>
+          <button type="button" class="btn btn-secondary close-btn">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="unlockAcademicEditModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Enable One-Time Year/Sem Edit</h2>
+        <button class="close-btn">&times;</button>
+      </div>
+      <form id="unlockAcademicEditForm" class="modal-form">
+        <div class="form-group">
+          <label>Department</label>
+          <select id="unlockDepartment">
+            <option value="">All Departments</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Current Year</label>
+          <select id="unlockYear">
+            <option value="">All Years</option>
+            <option value="1st">1st Year</option>
+            <option value="2nd">2nd Year</option>
+            <option value="3rd">3rd Year</option>
+            <option value="4th">4th Year</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Current Semester</label>
+          <select id="unlockSemester">
+            <option value="">All Semesters</option>
+            <option value="Sem 1">Sem 1</option>
+            <option value="Sem 2">Sem 2</option>
+            <option value="Sem 3">Sem 3</option>
+            <option value="Sem 4">Sem 4</option>
+            <option value="Sem 5">Sem 5</option>
+            <option value="Sem 6">Sem 6</option>
+            <option value="Sem 7">Sem 7</option>
+            <option value="Sem 8">Sem 8</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Enable Edit</button>
+          <button type="button" class="btn btn-secondary close-btn">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="addDepartmentModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add Department</h2>
+        <button class="close-btn">&times;</button>
+      </div>
+      <form id="addDepartmentForm" class="modal-form">
+        <div class="form-group">
+          <label>Department Name</label>
+          <input type="text" id="departmentName" required>
+        </div>
+        <div class="form-group">
+          <label>Department Code</label>
+          <input type="text" id="departmentCode">
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="departmentDesc"></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Add Department</button>
           <button type="button" class="btn btn-secondary close-btn">Cancel</button>
         </div>
       </form>

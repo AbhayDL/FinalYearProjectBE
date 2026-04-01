@@ -29,5 +29,6 @@ router.post("/teacher/:submissionId/comment", protect, teacher, addTeacherCommen
 router.put("/teacher/:submissionId/code", protect, teacher, updateSubmissionCodeByTeacher);
 // Teacher view: subject-wise completion
 router.get("/teacher/subject/:subject/summary", protect, teacher, getSubjectCompletionSummary);
+router.get("/teacher/subject-id/:subjectId/summary", protect, teacher, getSubjectCompletionSummary);
 
 module.exports = router;

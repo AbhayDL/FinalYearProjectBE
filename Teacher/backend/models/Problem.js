@@ -29,7 +29,9 @@ const problemSchema = new mongoose.Schema(
 
     year: String,
     semester: String,
+    department: String,
     subject: String,
+    subjectId: { type: mongoose.Schema.Types.ObjectId, ref: "Subject" },
 
     difficulty: {
       type: String,

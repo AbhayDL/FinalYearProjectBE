@@ -99,6 +99,28 @@ const requestedProblemId = reviewParams.get("problem_id");
 const requestedStudentId = reviewParams.get("student_id");
 const requestedSubmissionId = reviewParams.get("submission_id");
 
+function getSubjectKey(subject = {}) {
+  return [
+    subject?._id || subject?.id || "",
+    subject?.name || "",
+    subject?.department || "",
+    subject?.year || "",
+    subject?.semester || ""
+  ].join("::");
+}
+
+function parseSubjectKey(subjectKey = "") {
+  const [id, name, department, year, semester] = String(subjectKey).split("::");
+  return { id, name, department, year, semester };
+}
+
+function formatSubjectLabel(subject = {}) {
+  const parts = [subject?.name || "Unknown Subject"];
+  if (subject?.department) parts.push(subject.department);
+  if (subject?.year || subject?.semester) parts.push([subject.year, subject.semester].filter(Boolean).join(" / "));
+  return parts.join(" | ");
+}
+
 async function loadTaskCompletionModule() {
   const select = document.getElementById("completion-problem-select");
   const completionSubjectSelect = document.getElementById("completion-subject-select");
@@ -144,16 +166,28 @@ async function loadTaskCompletionModule() {
       });
       if (subjectRes.ok) {
         const subjectData = await subjectRes.json();
-        subjects = (subjectData || []).map(s => s.name).filter(Boolean);
+        subjects = subjectData || [];
       }
     } catch (err) {
       // fallback to subjects inferred from problems
     }
 
     if (subjects.length === 0) {
-      subjects = Array.from(
-        new Set(problems.map(p => p.subject).filter(Boolean))
-      );
+      const fallbackMap = new Map();
+      problems.forEach((problem) => {
+        const derivedSubject = {
+          id: problem.subjectId || "",
+          name: problem.subject || "",
+          department: problem.department || "",
+          year: problem.year || "",
+          semester: problem.semester || ""
+        };
+        const key = getSubjectKey(derivedSubject);
+        if (derivedSubject.name && !fallbackMap.has(key)) {
+          fallbackMap.set(key, derivedSubject);
+        }
+      });
+      subjects = Array.from(fallbackMap.values());
     }
 
     populateSubjectSelect(subjectSelect, subjects);
@@ -218,8 +252,15 @@ async function loadTaskCompletionModule() {
 
     const initialProblem = problems[0];
     if (completionSubjectSelect && initialProblem?.subject) {
-      completionSubjectSelect.value = initialProblem.subject;
-      completionSubjectTitle = initialProblem.subject;
+      const initialSubjectKey = getSubjectKey({
+        id: initialProblem.subjectId || "",
+        name: initialProblem.subject,
+        department: initialProblem.department || "",
+        year: initialProblem.year || "",
+        semester: initialProblem.semester || ""
+      });
+      completionSubjectSelect.value = initialSubjectKey;
+      completionSubjectTitle = initialSubjectKey;
     }
 
     populateProblemSelectForSubject(completionSubjectTitle);
@@ -243,8 +284,15 @@ async function loadTaskCompletionModule() {
       const requestedProblem = allProblems.find((problem) => problem._id === requestedProblemId);
       if (requestedProblem) {
         if (completionSubjectSelect && requestedProblem.subject) {
-          completionSubjectSelect.value = requestedProblem.subject;
-          completionSubjectTitle = requestedProblem.subject;
+          const requestedSubjectKey = getSubjectKey({
+            id: requestedProblem.subjectId || "",
+            name: requestedProblem.subject,
+            department: requestedProblem.department || "",
+            year: requestedProblem.year || "",
+            semester: requestedProblem.semester || ""
+          });
+          completionSubjectSelect.value = requestedSubjectKey;
+          completionSubjectTitle = requestedSubjectKey;
         }
         populateProblemSelectForSubject(completionSubjectTitle);
         select.value = requestedProblemId;
@@ -264,8 +312,8 @@ function populateSubjectSelect(select, subjects) {
   select.innerHTML = '<option value="">Select a subject...</option>';
   subjects.forEach((subject) => {
     const option = document.createElement("option");
-    option.value = subject;
-    option.textContent = subject;
+    option.value = getSubjectKey(subject);
+    option.textContent = formatSubjectLabel(subject);
     select.appendChild(option);
   });
 }
@@ -274,8 +322,17 @@ function populateProblemSelectForSubject(subject) {
   const select = document.getElementById("completion-problem-select");
   if (!select) return;
 
+  const selectedSubject = parseSubjectKey(subject);
   const filteredProblems = subject
-    ? allProblems.filter((problem) => problem.subject === subject)
+    ? allProblems.filter((problem) =>
+        (problem.subjectId || "") === selectedSubject.id ||
+        (
+          (problem.subject || "") === selectedSubject.name &&
+          (problem.department || "") === selectedSubject.department &&
+          (problem.year || "") === selectedSubject.year &&
+          (problem.semester || "") === selectedSubject.semester
+        )
+      )
     : allProblems;
 
   select.innerHTML = '<option value="">Select a problem...</option>';
@@ -823,8 +880,12 @@ async function loadSubjectSummary(subject, token) {
   container.innerHTML = "<p>Loading subject summary...</p>";
 
   try {
+    const subjectMeta = parseSubjectKey(subject);
+    const summaryUrl = subjectMeta.id
+      ? `${EFFECTIVE_AUTH_BASE}/api/submissions/teacher/subject-id/${encodeURIComponent(subjectMeta.id)}/summary`
+      : `${EFFECTIVE_AUTH_BASE}/api/submissions/teacher/subject/${encodeURIComponent(subjectMeta.name)}/summary`;
     const res = await fetch(
-      `${EFFECTIVE_AUTH_BASE}/api/submissions/teacher/subject/${encodeURIComponent(subject)}/summary`,
+      summaryUrl,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     if (!res.ok) {

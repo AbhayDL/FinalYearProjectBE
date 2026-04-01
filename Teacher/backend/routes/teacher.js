@@ -7,25 +7,34 @@ const User = require("../models/User");
 
 const router = express.Router();
 
-function buildAudienceConditions(problems) {
+function formatSubjectAudienceLabel(item = {}) {
+  const parts = [item.subject || item.name || "Unknown"];
+  if (item.department) parts.push(item.department);
+  if (item.year || item.semester) parts.push([item.year, item.semester].filter(Boolean).join(" / "));
+  return parts.join(" | ");
+}
+
+function buildAudienceConditions(items) {
   const seen = new Set();
   const conditions = [];
 
-  for (const problem of problems || []) {
-    const year = (problem.year || "").trim();
-    const semester = (problem.semester || "").trim();
+  for (const item of items || []) {
+    const department = (item.department || "").trim();
+    const year = (item.year || "").trim();
+    const semester = (item.semester || "").trim();
 
-    if (!year && !semester) {
+    if (!department && !year && !semester) {
       continue;
     }
 
-    const key = `${year}::${semester}`;
+    const key = `${department}::${year}::${semester}`;
     if (seen.has(key)) {
       continue;
     }
     seen.add(key);
 
     const condition = {};
+    if (department) condition.department = department;
     if (year) condition.year = year;
     if (semester) condition.semester = semester;
     conditions.push(condition);
@@ -41,21 +50,28 @@ function normalizeAcademicValue(value) {
 }
 
 async function getTeacherAudience(req) {
-  const teacherProblems = await Problem.find({ createdBy: req.user.email })
-    .select("_id year semester title subject createdAt")
-    .lean();
+  const [teacherProblems, assignedSubjects] = await Promise.all([
+    Problem.find({ createdBy: req.user.email })
+      .select("_id department year semester title subject createdAt")
+      .lean(),
+    Subject.find({ assignedTeacher: req.user._id })
+      .select("_id name department year semester")
+      .lean()
+  ]);
 
   return {
     teacherProblems,
-    audienceConditions: buildAudienceConditions(teacherProblems)
+    assignedSubjects,
+    audienceConditions: buildAudienceConditions(assignedSubjects)
   };
 }
 
 function isStudentInAudience(student, audienceConditions) {
   return (audienceConditions || []).some((condition) => {
+    const departmentOk = !condition.department || normalizeAcademicValue(condition.department) === normalizeAcademicValue(student.department);
     const yearOk = !condition.year || normalizeAcademicValue(condition.year) === normalizeAcademicValue(student.year);
     const semesterOk = !condition.semester || normalizeAcademicValue(condition.semester) === normalizeAcademicValue(student.semester);
-    return yearOk && semesterOk;
+    return departmentOk && yearOk && semesterOk;
   });
 }
 
@@ -63,7 +79,7 @@ function isStudentInAudience(student, audienceConditions) {
 router.get("/subjects", protect, teacher, async (req, res) => {
   try {
     const subjects = await Subject.find({ assignedTeacher: req.user._id })
-      .select("name code year semester")
+      .select("name code department year semester")
       .sort({ name: 1 });
     res.json(subjects);
   } catch (err) {
@@ -84,7 +100,7 @@ router.get("/students", protect, teacher, async (req, res) => {
       role: "student",
       $or: audienceConditions
     })
-      .select("name email isActive createdAt year semester")
+      .select("name email isActive createdAt department year semester")
       .sort({ createdAt: -1 });
     res.json(students);
   } catch (err) {
@@ -104,7 +120,7 @@ router.get("/students/:id/overview", protect, teacher, async (req, res) => {
       _id: req.params.id,
       role: "student",
       $or: audienceConditions
-    }).select("name email isActive createdAt updatedAt year semester");
+    }).select("name email isActive createdAt updatedAt department year semester");
 
     if (!student) {
       return res.status(404).json({ message: "Student not found" });
@@ -131,6 +147,7 @@ router.get("/students/:id/overview", protect, teacher, async (req, res) => {
         isActive: student.isActive,
         createdAt: student.createdAt,
         updatedAt: student.updatedAt,
+        department: student.department,
         year: student.year,
         semester: student.semester
       },
@@ -157,6 +174,7 @@ router.get("/students/:id/overview", protect, teacher, async (req, res) => {
               id: submission.problem._id,
               title: submission.problem.title,
               subject: submission.problem.subject,
+              department: submission.problem.department,
               difficulty: submission.problem.difficulty,
               year: submission.problem.year,
               semester: submission.problem.semester
@@ -310,7 +328,7 @@ router.get("/reports-summary", protect, teacher, async (req, res) => {
 
     const submissions = await Submission.find({ problem: { $in: problemIds } })
       .populate("student", "name")
-      .populate("problem", "title subject")
+      .populate("problem", "title subject department year semester")
       .sort({ updatedAt: -1 })
       .lean();
 
@@ -332,7 +350,12 @@ router.get("/reports-summary", protect, teacher, async (req, res) => {
     const subjectMap = {};
     submissions.forEach((submission) => {
       const problemTitle = submission.problem?.title || "Unknown";
-      const subject = submission.problem?.subject || "Unknown";
+      const subject = formatSubjectAudienceLabel({
+        subject: submission.problem?.subject,
+        department: submission.problem?.department,
+        year: submission.problem?.year,
+        semester: submission.problem?.semester
+      });
       const studentName = submission.student?.name || "Unknown";
 
       attemptsByProblem[problemTitle] = (attemptsByProblem[problemTitle] || 0) + 1;

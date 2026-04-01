@@ -16,6 +16,11 @@ const EXECUTOR_FALLBACK_URLS = [
   API_BASE_URL,
 ];
 
+function getStudentAuthHeaders() {
+  const token = localStorage.getItem("studentToken");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function fetchWithExecutor(path, options = {}) {
   let lastError;
   for (const base of EXECUTOR_FALLBACK_URLS) {
@@ -563,7 +568,7 @@ async function fetchProblemsForYearSemester(year, semester) {
         : `${PROBLEMS_BASE_URL}/api/problems`;
 
       try {
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: getStudentAuthHeaders() });
         if (!res.ok) continue;
         const data = await res.json();
         lastProblems = Array.isArray(data) ? data : [];
@@ -575,7 +580,9 @@ async function fetchProblemsForYearSemester(year, semester) {
   }
   // Fallback: fetch all problems and filter by normalized year/semester
   try {
-    const resAll = await fetch(`${PROBLEMS_BASE_URL}/api/problems`);
+    const resAll = await fetch(`${PROBLEMS_BASE_URL}/api/problems`, {
+      headers: getStudentAuthHeaders()
+    });
     if (resAll.ok) {
       const all = await resAll.json();
       const yNorm = normalizeYearValue(year);
@@ -594,7 +601,9 @@ async function fetchProblemsForYearSemester(year, semester) {
 }
 async function fetchSubjectsForYearSemester(year, semester) {
   try {
-    const res = await fetch(`${PROBLEMS_BASE_URL}/api/subjects`);
+    const res = await fetch(`${PROBLEMS_BASE_URL}/api/subjects`, {
+      headers: getStudentAuthHeaders()
+    });
     if (!res.ok) return [];
     const subjects = await res.json();
     const yNorm = normalizeYearValue(year);
@@ -611,7 +620,9 @@ async function fetchSubjectsForYearSemester(year, semester) {
 
 async function fetchAllProblems() {
   try {
-    const res = await fetch(`${PROBLEMS_BASE_URL}/api/problems`);
+    const res = await fetch(`${PROBLEMS_BASE_URL}/api/problems`, {
+      headers: getStudentAuthHeaders()
+    });
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data : [];
@@ -696,7 +707,9 @@ async function loadProblem() {
     if (stmtSection) stmtSection.style.display = "block";
 
     // Fetch problem from backend
-    const res = await fetch(`${PROBLEMS_BASE_URL}/api/problems/${problemId}`);
+    const res = await fetch(`${PROBLEMS_BASE_URL}/api/problems/${problemId}`, {
+      headers: getStudentAuthHeaders()
+    });
     if (!res.ok) {
       throw new Error("Problem not found");
     }

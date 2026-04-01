@@ -1124,6 +1124,34 @@ button:disabled {
   max-width: 500px;
 }
 
+.profile-status-banner {
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 0.9rem;
+  background: rgba(2, 6, 23, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.profile-status-banner.enabled {
+  background: rgba(52, 211, 153, 0.14);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: #a7f3d0;
+}
+
+.profile-status-banner.used {
+  background: rgba(56, 189, 248, 0.14);
+  border-color: rgba(56, 189, 248, 0.3);
+  color: #bae6fd;
+}
+
+.profile-status-banner.locked {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fde68a;
+}
+
 .form-group {
   margin-bottom: 1.5rem;
 }

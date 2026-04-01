@@ -15,10 +15,10 @@ const {
 router.post("/add", protect, teacher, addProblem);
 
 // Student problem list
-router.get("/", getProblems);
+router.get("/", attachUserIfPresent, getProblems);
 
 // (Optional) backward compatibility
-router.get("/all", getProblems);
+router.get("/all", attachUserIfPresent, getProblems);
 
 // Teacher - list problems created by teacher
 router.get("/teacher", protect, teacher, getProblemsByTeacher);

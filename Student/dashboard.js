@@ -5,6 +5,11 @@ const API_BASE_URL = localStorage.getItem("API_BASE_URL") || "http://localhost:4
 const PROBLEMS_BASE_URL = localStorage.getItem("PROBLEMS_BASE_URL") || API_BASE_URL;
 const AUTH_BASE_URL = localStorage.getItem("AUTH_BASE_URL") || API_BASE_URL;
 
+function getStudentAuthHeaders() {
+  const token = localStorage.getItem("studentToken");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 // ============================
 // 🌐 AUTHENTICATION CHECK
 // ============================
@@ -49,6 +54,7 @@ let profileSemesterEl = null;
 let editProfileBtn = null;
 let saveProfileBtn = null;
 let cancelProfileBtn = null;
+let profileAcademicStatusEl = null;
 
 function escapeHtml(text) {
   return String(text)
@@ -70,10 +76,36 @@ function updateSidebarWelcome(user) {
   }
 }
 
+function refreshAcademicEditStatus(user) {
+  if (!profileAcademicStatusEl) return;
+
+  profileAcademicStatusEl.className = "profile-status-banner";
+
+  if (user?.academicEditEnabled) {
+    profileAcademicStatusEl.classList.add("enabled");
+    profileAcademicStatusEl.textContent = "Admin has enabled one-time Year/Semester editing for your account. After you save once, this option will lock again.";
+    if (editProfileBtn) editProfileBtn.disabled = false;
+    return;
+  }
+
+  if (user?.academicEditUsed) {
+    profileAcademicStatusEl.classList.add("used");
+    profileAcademicStatusEl.textContent = "Your one-time Year/Semester update has already been used. Contact admin if another change is needed.";
+    if (editProfileBtn) editProfileBtn.disabled = true;
+    return;
+  }
+
+  profileAcademicStatusEl.classList.add("locked");
+  profileAcademicStatusEl.textContent = "Year/Semester editing is locked. Admin can enable it for one-time use when your academic term changes.";
+  if (editProfileBtn) editProfileBtn.disabled = true;
+}
+
 async function loadDashboardData() {
   try {
     // Load problems count
-    const problemsRes = await fetch(`${PROBLEMS_BASE_URL}/api/problems`);
+    const problemsRes = await fetch(`${PROBLEMS_BASE_URL}/api/problems`, {
+      headers: getStudentAuthHeaders()
+    });
     const problems = await problemsRes.json();
     document.getElementById("total-problems").textContent = problems.length;
 
@@ -90,6 +122,7 @@ async function loadDashboardData() {
       document.getElementById("profile-role").value = profile.role;
       if (profileYearEl) profileYearEl.value = profile.year || "";
       if (profileSemesterEl) profileSemesterEl.value = profile.semester || "";
+      refreshAcademicEditStatus(profile);
 
       // Keep localStorage in sync for filtering problems
       localStorage.setItem("studentUser", JSON.stringify(profile));
@@ -248,7 +281,7 @@ async function fetchProblemsForYearSemester(year, semester) {
         : `${PROBLEMS_BASE_URL}/api/problems`;
 
       try {
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: getStudentAuthHeaders() });
         if (!res.ok) continue;
         const data = await res.json();
         lastProblems = Array.isArray(data) ? data : [];
@@ -260,7 +293,9 @@ async function fetchProblemsForYearSemester(year, semester) {
   }
   // Fallback: fetch all problems and filter by normalized year/semester
   try {
-    const resAll = await fetch(`${PROBLEMS_BASE_URL}/api/problems`);
+    const resAll = await fetch(`${PROBLEMS_BASE_URL}/api/problems`, {
+      headers: getStudentAuthHeaders()
+    });
     if (resAll.ok) {
       const all = await resAll.json();
       const yNorm = normalizeYearValue(year);
@@ -279,7 +314,9 @@ async function fetchProblemsForYearSemester(year, semester) {
 }
 async function fetchSubjectsForYearSemester(year, semester) {
   try {
-    const res = await fetch(`${PROBLEMS_BASE_URL}/api/subjects`);
+    const res = await fetch(`${PROBLEMS_BASE_URL}/api/subjects`, {
+      headers: getStudentAuthHeaders()
+    });
     if (!res.ok) return [];
     const subjects = await res.json();
     const yNorm = normalizeYearValue(year);
@@ -296,7 +333,9 @@ async function fetchSubjectsForYearSemester(year, semester) {
 
 async function fetchAllProblems() {
   try {
-    const res = await fetch(`${PROBLEMS_BASE_URL}/api/problems`);
+    const res = await fetch(`${PROBLEMS_BASE_URL}/api/problems`, {
+      headers: getStudentAuthHeaders()
+    });
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data : [];
@@ -484,6 +523,11 @@ function formatSubmissionStatus(status, queryStatus = "none") {
 // 👤 PROFILE SECTION
 // ============================
 function editProfile() {
+  const user = getStoredStudent();
+  if (!user?.academicEditEnabled) {
+    alert("Admin has not enabled Year/Semester editing for your account yet.");
+    return;
+  }
   setProfileEditMode(true);
 }
 
@@ -527,6 +571,7 @@ async function saveProfile() {
     localStorage.setItem("studentUser", JSON.stringify(updated));
     currentUser = updated;
     setProfileEditMode(false);
+    refreshAcademicEditStatus(updated);
 
     // Refresh problems list to match updated year/semester
     if (document.getElementById("problems-section").classList.contains("active")) {
@@ -591,8 +636,10 @@ document.addEventListener("DOMContentLoaded", function() {
     editProfileBtn = document.getElementById("edit-profile-btn");
     saveProfileBtn = document.getElementById("save-profile-btn");
     cancelProfileBtn = document.getElementById("cancel-profile-btn");
+    profileAcademicStatusEl = document.getElementById("profile-academic-status");
 
     setProfileEditMode(false);
+    refreshAcademicEditStatus(currentUser);
     loadDashboardData();
   }
 });

@@ -8,8 +8,13 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
     role: { type: String, enum: ["admin", "teacher", "student"], default: "student" },
     isActive: { type: Boolean, default: true },
+    department: { type: String, default: "" },
     semester: { type: String },
-    year: { type: String }
+    year: { type: String },
+    academicEditEnabled: { type: Boolean, default: false },
+    academicEditUsed: { type: Boolean, default: false },
+    academicEditEnabledAt: { type: Date, default: null },
+    academicEditUsedAt: { type: Date, default: null }
   },
   { timestamps: true }
 );

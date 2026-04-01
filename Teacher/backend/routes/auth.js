@@ -7,7 +7,7 @@ const { toSafeUser } = require("../utils/userResponse");
 const router = express.Router();
 
 router.post("/register", protect, async (req, res) => {
-  const { name, email, password, semester, year, role } = req.body;
+  const { name, email, password, semester, year, department, role } = req.body;
   const requestedRole = role || "student";
   const canCreateAsAdmin = req.user.role === "admin";
   const canCreateAsTeacher = req.user.role === "teacher" && requestedRole === "student";
@@ -20,13 +20,27 @@ router.post("/register", protect, async (req, res) => {
     const existing = await User.findOne({ email });
     if (existing) return res.status(400).json({ message: "Email already in use" });
 
+    const academic =
+      requestedRole === "student"
+        ? {
+            department: department || "",
+            semester: semester || "",
+            year: year || ""
+          }
+        : {
+            department: "",
+            semester: "",
+            year: ""
+          };
+
     const user = new User({
       name,
       email,
       password,
       role: requestedRole,
-      semester: semester || "",
-      year: year || ""
+      department: academic.department,
+      semester: academic.semester,
+      year: academic.year
     });
     await user.save();
 
@@ -71,7 +85,7 @@ router.get("/me", protect, async (req, res) => {
   }
 });
 
-// PUT /api/auth/me - update student profile (year/semester)
+// PUT /api/auth/me - update student academic profile when admin has unlocked one-time editing
 router.put("/me", protect, async (req, res) => {
   try {
     if (!req.user) return res.status(401).json({ message: "Not authorized" });
@@ -79,10 +93,17 @@ router.put("/me", protect, async (req, res) => {
       return res.status(403).json({ message: "Student access required" });
     }
 
+    if (!req.user.academicEditEnabled || req.user.academicEditUsed) {
+      return res.status(403).json({ message: "Academic update is not enabled. Please contact admin." });
+    }
+
     const { year, semester } = req.body || {};
     const update = {};
     if (typeof year === "string") update.year = year;
     if (typeof semester === "string") update.semester = semester;
+    update.academicEditEnabled = false;
+    update.academicEditUsed = true;
+    update.academicEditUsedAt = new Date();
 
     const updated = await User.findByIdAndUpdate(req.user._id, update, {
       new: true,

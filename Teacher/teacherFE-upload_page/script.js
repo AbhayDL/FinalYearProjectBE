@@ -22,7 +22,7 @@ const guiProblemTypeSelect = document.getElementById('guiProblemType');
 const allowedLibrariesInput = document.getElementById('allowedLibraries');
 const teacherChecklistInput = document.getElementById('teacherVerificationChecklist');
 let assignedSubjects = [];
-let assignedSubjectNames = new Set();
+let assignedSubjectIds = new Set();
 
 function goBack() {
   window.location.href = '../teacherFE-dashboard/index.html';
@@ -201,7 +201,7 @@ function updateYearSemesterLock(subjectName) {
 
 function applySubjectMeta(subjectName, options = {}) {
   if (!subjectName) return;
-  const subject = assignedSubjects.find(s => s.name === subjectName);
+  const subject = assignedSubjects.find(s => String(s._id) === String(subjectName) || s.name === subjectName);
   if (!subject) return;
 
   const force = options.force === true;
@@ -229,10 +229,11 @@ function applySubjectSelection(subjectValue) {
     updateYearSemesterLock('');
     return;
   }
-  if (assignedSubjectNames.has(subjectValue)) {
-    subjectSelect.value = subjectValue;
+  const knownSubject = assignedSubjects.find((subject) => String(subject._id) === String(subjectValue) || subject.name === subjectValue);
+  if (knownSubject) {
+    subjectSelect.value = String(knownSubject._id);
     setSubjectHint('', false);
-    updateYearSemesterLock(subjectValue);
+    updateYearSemesterLock(String(knownSubject._id));
     return;
   }
   const option = document.createElement('option');
@@ -261,7 +262,7 @@ async function loadAssignedSubjects() {
     if (!res.ok) throw new Error('Unable to load assigned subjects.');
     const subjects = await res.json();
     assignedSubjects = Array.isArray(subjects) ? subjects : [];
-    assignedSubjectNames = new Set(assignedSubjects.map(s => s.name));
+    assignedSubjectIds = new Set(assignedSubjects.map(s => String(s._id)));
 
     if (assignedSubjects.length === 0) {
       subjectSelect.innerHTML = '<option value="">No subjects assigned</option>';
@@ -273,8 +274,8 @@ async function loadAssignedSubjects() {
       '<option value="">Select Subject</option>' +
       assignedSubjects
         .map((s) => {
-          const label = `${s.name}${s.code ? ` (${s.code})` : ''}`;
-          return `<option value="${escapeHtml(s.name)}">${escapeHtml(label)}</option>`;
+          const label = `${s.name}${s.code ? ` (${s.code})` : ''} • ${s.department || 'No Dept'} • ${s.year || 'N/A'} / ${s.semester || 'N/A'}`;
+          return `<option value="${escapeHtml(String(s._id))}">${escapeHtml(label)}</option>`;
         })
         .join('');
 
@@ -326,7 +327,7 @@ if (editId) {
         });
         document.getElementById('status').value = data.status || 'published';
 
-        subjectsReady.then(() => applySubjectSelection(data.subject || ''));
+        subjectsReady.then(() => applySubjectSelection(data.subjectId || data.subject || ''));
 
         if (data.testCases && data.testCases.length > 0) {
           testCases = data.testCases.map(tc => ({ input: tc.input || '', output: tc.output || '', visibility: tc.visibility || 'visible' }));
@@ -433,22 +434,17 @@ function handleSubmit() {
   const title = document.getElementById('problemTitle').value.trim();
   const description = document.getElementById('problemDescription').value.trim();
   const language = document.getElementById('language').value;
-  const subject = subjectSelect ? subjectSelect.value : '';
+  const subjectId = subjectSelect ? subjectSelect.value : '';
+  const selectedSubject = assignedSubjects.find((item) => String(item._id) === String(subjectId));
 
   if (!title || !description || !language) {
     alert("Title, Description, and Language are required");
     return;
   }
 
-  if (!subject) {
+  if (!subjectId || !selectedSubject) {
     setSubjectHint('Select a subject assigned to you.', true);
     alert('Please select a subject assigned to you.');
-    return;
-  }
-
-  if (!assignedSubjectNames.has(subject)) {
-    setSubjectHint('Selected subject is not assigned to you.', true);
-    alert('You can only upload problems for your assigned subjects.');
     return;
   }
 
@@ -467,13 +463,15 @@ function handleSubmit() {
     inputFormat: document.getElementById('inputFormat').value,
     outputFormat: document.getElementById('outputFormat').value,
     constraints: document.getElementById('constraints').value,
+    subjectId,
+    subject: selectedSubject.name,
     guiReviewRequired: isGuiReviewProblem(),
     guiProblemType: isGuiReviewProblem() ? (guiProblemTypeSelect?.value || (isWebLanguage(language) ? 'html' : 'gui_other')) : 'standard',
     allowedLibraries: String(allowedLibrariesInput?.value || ''),
     teacherVerificationChecklist: String(teacherChecklistInput?.value || ''),
-    year: document.getElementById('year').value,
-    semester: document.getElementById('semester').value,
-    subject,
+    year: selectedSubject.year || document.getElementById('year').value,
+    semester: selectedSubject.semester || document.getElementById('semester').value,
+    department: selectedSubject.department || "",
     difficulty: document.getElementById('difficulty').value,
     language,
     status: document.getElementById('status').value,

@@ -1,6 +1,28 @@
 const Problem = require("../models/Problem");
 const Subject = require("../models/Subject");
 
+function normalizeAcademicValue(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function matchesStudentAudience(problem, student) {
+  if (!student || student.role !== "student") return true;
+
+  const departmentOk =
+    !problem?.department ||
+    normalizeAcademicValue(problem.department) === normalizeAcademicValue(student.department);
+  const yearOk =
+    !problem?.year ||
+    normalizeAcademicValue(problem.year) === normalizeAcademicValue(student.year);
+  const semesterOk =
+    !problem?.semester ||
+    normalizeAcademicValue(problem.semester) === normalizeAcademicValue(student.semester);
+
+  return departmentOk && yearOk && semesterOk;
+}
+
 function normalizeProblemPayload(body = {}) {
   const normalized = { ...body };
   normalized.guiReviewRequired = Boolean(body.guiReviewRequired) || String(body.language || "") === "1001";
@@ -39,7 +61,7 @@ function normalizeProblemPayload(body = {}) {
 // ADD Problem
 exports.addProblem = async (req, res) => {
   try {
-    const { title, description, language, subject } = req.body;
+    const { title, description, language, subject, subjectId } = req.body;
 
     if (!title || !description || !language) {
       return res.status(400).json({
@@ -47,20 +69,29 @@ exports.addProblem = async (req, res) => {
       });
     }
 
-    if (!subject) {
+    if (!subject && !subjectId) {
       return res.status(400).json({ message: "Subject is required" });
     }
 
     const assigned = await Subject.findOne({
-      name: subject,
+      ...(subjectId ? { _id: subjectId } : { name: subject }),
       assignedTeacher: req.user._id,
-    }).select("_id");
+    }).select("_id name year semester department");
 
     if (!assigned) {
       return res.status(403).json({ message: "Subject not assigned to this teacher" });
     }
 
-    const problem = new Problem({ ...normalizeProblemPayload(req.body), createdBy: req.user.email });
+    const normalized = normalizeProblemPayload(req.body);
+    const problem = new Problem({
+      ...normalized,
+      subjectId: assigned._id,
+      subject: assigned.name,
+      year: assigned.year || normalized.year || "",
+      semester: assigned.semester || normalized.semester || "",
+      department: assigned.department || "",
+      createdBy: req.user.email
+    });
     const savedProblem = await problem.save();
 
     res.status(201).json({
@@ -76,13 +107,20 @@ exports.addProblem = async (req, res) => {
 exports.getProblems = async (req, res) => {
   try {
     const filter = { status: "published" };
-    if (req.query.year) filter.year = req.query.year;
-    if (req.query.semester) filter.semester = req.query.semester;
+    if (req.user?.role === "student") {
+      if (req.user.department) filter.department = req.user.department;
+      if (req.user.year) filter.year = req.user.year;
+      if (req.user.semester) filter.semester = req.user.semester;
+    } else {
+      if (req.query.department) filter.department = req.query.department;
+      if (req.query.year) filter.year = req.query.year;
+      if (req.query.semester) filter.semester = req.query.semester;
+    }
     if (req.query.subject) filter.subject = req.query.subject;
 
     const problems = await Problem.find(
       filter,
-      "title description difficulty semester subject year"
+      "title description difficulty semester subject year department language"
     ).sort({ createdAt: -1 });
 
     res.json(problems);
@@ -98,6 +136,10 @@ exports.getProblemById = async (req, res) => {
 
     if (!problem) {
       return res.status(404).json({ message: "Problem not found" });
+    }
+
+    if (req.user?.role === "student" && !matchesStudentAudience(problem, req.user)) {
+      return res.status(403).json({ message: "Not allowed to view this problem" });
     }
 
     // IMPORTANT: hidden test cases are only visible to admins or the owning teacher
@@ -128,7 +170,7 @@ exports.getProblemsByTeacher = async (req, res) => {
     const email = req.user ? req.user.email : req.params.email;
     const problems = await Problem.find(
       { createdBy: email },
-      "title description difficulty semester subject year status createdAt"
+      "title description difficulty semester subject year department status createdAt"
     ).sort({ createdAt: -1 });
 
     res.json(problems);
@@ -147,14 +189,19 @@ exports.updateProblem = async (req, res) => {
       return res.status(403).json({ message: "Not allowed to update this problem" });
     }
 
-    if (req.body.subject) {
+    if (req.body.subject || req.body.subjectId) {
       const assigned = await Subject.findOne({
-        name: req.body.subject,
+        ...(req.body.subjectId ? { _id: req.body.subjectId } : { name: req.body.subject }),
         assignedTeacher: req.user._id,
-      }).select("_id");
+      }).select("_id name year semester department");
       if (!assigned) {
         return res.status(403).json({ message: "Subject not assigned to this teacher" });
       }
+      req.body.subjectId = assigned._id;
+      req.body.subject = assigned.name;
+      req.body.year = assigned.year || "";
+      req.body.semester = assigned.semester || "";
+      req.body.department = assigned.department || "";
     }
 
     const update = normalizeProblemPayload(req.body);

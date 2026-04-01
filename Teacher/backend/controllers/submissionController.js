@@ -7,6 +7,10 @@ const { executeCode } = require("../services/executor");
 function buildStudentAccessFilter(access = {}) {
   const filter = { role: "student" };
 
+  if (access.department) {
+    filter.department = access.department;
+  }
+
   if (access.year) {
     filter.year = access.year;
   }
@@ -89,7 +93,7 @@ function isGuiReviewProblem(problem = {}) {
 }
 
 async function verifyTeacherProblemAccess(problemId, teacherUser) {
-  const problem = await Problem.findById(problemId).select("title subject year semester createdBy");
+  const problem = await Problem.findById(problemId).select("title subject subjectId department year semester createdBy");
   if (!problem) {
     return { error: { status: 404, message: "Problem not found" } };
   }
@@ -99,9 +103,9 @@ async function verifyTeacherProblemAccess(problemId, teacherUser) {
   }
 
   const assignedSubject = await Subject.findOne({
-    name: problem.subject,
+    ...(problem.subjectId ? { _id: problem.subjectId } : { name: problem.subject }),
     assignedTeacher: teacherUser._id
-  }).select("_id year semester");
+  }).select("_id department year semester");
 
   if (!assignedSubject) {
     return { error: { status: 403, message: "Not allowed to assess this subject" } };
@@ -125,6 +129,10 @@ function ensureStudentMatchesAccess(student, access = {}) {
 
   if (access.semester && normalizeAcademicValue(student.semester) !== normalizeAcademicValue(access.semester)) {
     return { ok: false, status: 403, message: "Student is outside this teacher's assigned semester" };
+  }
+
+  if (access.department && normalizeAcademicValue(student.department) !== normalizeAcademicValue(access.department)) {
+    return { ok: false, status: 403, message: "Student is outside this teacher's assigned department" };
   }
 
   return { ok: true };
@@ -358,6 +366,7 @@ exports.getProblemSubmissionSummary = async (req, res) => {
     const { problem, assignedSubject } = access;
 
     const accessFilter = buildStudentAccessFilter({
+      department: problem.department || assignedSubject.department,
       year: problem.year || assignedSubject.year,
       semester: problem.semester || assignedSubject.semester
     });
@@ -446,6 +455,7 @@ exports.getSubmissionByIdForTeacher = async (req, res) => {
 
     if (student) {
       const studentAccess = ensureStudentMatchesAccess(student, {
+        department: submission.problem?.department || access.assignedSubject.department,
         year: submission.problem?.year || access.assignedSubject.year,
         semester: submission.problem?.semester || access.assignedSubject.semester
       });
@@ -574,6 +584,7 @@ exports.getLatestSubmissionForTeacher = async (req, res) => {
 
     if (student) {
       const studentAccess = ensureStudentMatchesAccess(student, {
+        department: access.problem.department || access.assignedSubject.department,
         year: access.problem.year || access.assignedSubject.year,
         semester: access.problem.semester || access.assignedSubject.semester
       });
@@ -794,22 +805,32 @@ exports.updateSubmissionCodeByTeacher = async (req, res) => {
 // Teacher summary: subject-wise completion (all tasks in subject)
 exports.getSubjectCompletionSummary = async (req, res) => {
   try {
-    const subject = req.params.subject || req.query.subject;
-    if (!subject) {
+    const subjectId = req.params.subjectId || req.query.subjectId;
+    const subjectName = req.params.subject || req.query.subject;
+
+    if (!subjectId && !subjectName) {
       return res.status(400).json({ message: "Subject is required" });
     }
 
     const assignedSubject = await Subject.findOne({
-      name: subject,
+      ...(subjectId ? { _id: subjectId } : { name: subjectName }),
       assignedTeacher: req.user._id
-    }).select("_id year semester");
+    }).select("_id name department year semester");
 
     if (!assignedSubject) {
       return res.status(403).json({ message: "Not allowed to assess this subject" });
     }
 
     const problems = await Problem.find({
-      subject,
+      $or: [
+        { subjectId: assignedSubject._id },
+        {
+          subject: assignedSubject.name,
+          department: assignedSubject.department || "",
+          year: assignedSubject.year || "",
+          semester: assignedSubject.semester || ""
+        }
+      ],
       createdBy: req.user.email
     }).select("_id title");
 
@@ -825,6 +846,7 @@ exports.getSubjectCompletionSummary = async (req, res) => {
     const problemIds = problems.map(p => p._id);
     const students = await User.find(
       buildStudentAccessFilter({
+        department: assignedSubject.department,
         year: assignedSubject.year,
         semester: assignedSubject.semester
       })
@@ -872,7 +894,11 @@ exports.getSubjectCompletionSummary = async (req, res) => {
     });
 
     res.json({
-      subject,
+      subject: assignedSubject.name,
+      subjectId: assignedSubject._id,
+      department: assignedSubject.department || "",
+      year: assignedSubject.year || "",
+      semester: assignedSubject.semester || "",
       problems: problems.map(p => ({ id: p._id, title: p.title })),
       totalStudents: studentsSummary.length,
       students: studentsSummary

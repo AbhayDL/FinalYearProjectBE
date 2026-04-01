@@ -8,6 +8,11 @@ let currentProblem = null;
 let webEditor = null;
 let isSaving = false;
 
+function getStudentAuthHeaders() {
+  const token = localStorage.getItem("studentToken");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 function ensureLoggedIn() {
   const token = localStorage.getItem("studentToken");
   const userStr = localStorage.getItem("studentUser");
@@ -120,7 +125,9 @@ function renderPreview() {
 }
 
 async function fetchAllProblems() {
-  const res = await fetch(`${PROBLEMS_BASE_URL}/api/problems`);
+  const res = await fetch(`${PROBLEMS_BASE_URL}/api/problems`, {
+    headers: getStudentAuthHeaders()
+  });
   if (!res.ok) throw new Error("Failed to load problems");
   const problems = await res.json();
   return Array.isArray(problems) ? problems : [];
@@ -129,7 +136,9 @@ async function fetchAllProblems() {
 async function fetchSubjectsForStudent() {
   const student = getStoredStudent();
   if (!student?.year || !student?.semester) return [];
-  const res = await fetch(`${PROBLEMS_BASE_URL}/api/subjects`);
+  const res = await fetch(`${PROBLEMS_BASE_URL}/api/subjects`, {
+    headers: getStudentAuthHeaders()
+  });
   if (!res.ok) return [];
   const subjects = await res.json();
   return (Array.isArray(subjects) ? subjects : []).filter((subject) => {
@@ -280,7 +289,9 @@ async function loadProblem() {
   }
 
   try {
-    const res = await fetch(`${PROBLEMS_BASE_URL}/api/problems/${encodeURIComponent(problemId)}`);
+    const res = await fetch(`${PROBLEMS_BASE_URL}/api/problems/${encodeURIComponent(problemId)}`, {
+      headers: getStudentAuthHeaders()
+    });
     if (!res.ok) throw new Error("Problem not found");
     currentProblem = await res.json();
 
