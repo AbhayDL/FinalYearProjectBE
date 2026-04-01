@@ -426,7 +426,7 @@ exports.getSubmissionByIdForTeacher = async (req, res) => {
 
     const submission = await Submission.findById(submissionId)
       .populate("problem", "title subject year semester createdBy description inputFormat outputFormat language")
-      .populate("student", "name email year semester isActive role")
+      .populate("student", "name email department year semester isActive role")
       .populate("comments.author", "name email")
       .lean();
 
@@ -450,7 +450,7 @@ exports.getSubmissionByIdForTeacher = async (req, res) => {
       student = await User.findOne({
         _id: studentId,
         role: "student"
-      }).select("name email year semester isActive");
+      }).select("name email department year semester isActive");
     }
 
     if (student) {
@@ -525,7 +525,7 @@ exports.getLatestSubmissionForTeacher = async (req, res) => {
       student: studentId
     })
       .sort({ updatedAt: -1 })
-      .populate("student", "name email year semester isActive role")
+      .populate("student", "name email department year semester isActive role")
       .populate("comments.author", "name email")
       .populate("problem", "title subject year semester createdBy description inputFormat outputFormat language")
       .lean();
@@ -537,7 +537,7 @@ exports.getLatestSubmissionForTeacher = async (req, res) => {
         problem: problemId
       })
       .sort({ updatedAt: -1 })
-      .populate("student", "name email year semester isActive role")
+      .populate("student", "name email department year semester isActive role")
       .populate("comments.author", "name email")
       .populate("problem", "title subject year semester createdBy description inputFormat outputFormat language")
       .lean();
@@ -547,7 +547,7 @@ exports.getLatestSubmissionForTeacher = async (req, res) => {
       const directStudent = await User.findOne({
         _id: studentId,
         role: "student"
-      }).select("name email year semester isActive");
+      }).select("name email department year semester isActive");
 
       if (!directStudent) {
         return res.status(404).json({ message: "Student not found" });
@@ -558,7 +558,7 @@ exports.getLatestSubmissionForTeacher = async (req, res) => {
         student: directStudent._id
       })
         .sort({ updatedAt: -1 })
-        .populate("student", "name email year semester isActive role")
+        .populate("student", "name email department year semester isActive role")
         .populate("comments.author", "name email")
         .populate("problem", "title subject year semester createdBy description inputFormat outputFormat language")
         .lean();
@@ -579,7 +579,7 @@ exports.getLatestSubmissionForTeacher = async (req, res) => {
       student = await User.findOne({
         _id: submissionStudentId,
         role: "student"
-      }).select("name email year semester isActive");
+      }).select("name email department year semester isActive");
     }
 
     if (student) {
