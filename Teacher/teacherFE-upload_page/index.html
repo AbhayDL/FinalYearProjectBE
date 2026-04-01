@@ -51,6 +51,14 @@
           <input type="text" id="constraints" name="constraints" class="input" placeholder="e.g., 1 ≤ N ≤ 1000" />
         </div>
 
+        <div class="form-group gui-review-toggle">
+          <label class="checkbox-label">
+            <input type="checkbox" id="guiReviewRequired" />
+            <span>This problem has GUI / graph / ML visual output and should go directly to teacher review</span>
+          </label>
+          <p class="hint" id="guiReviewHint"></p>
+        </div>
+
         <!-- Metadata Grid -->
         <div class="grid grid-cols-3">
           <div class="form-group">
@@ -115,6 +123,7 @@
               <option value="78">Kotlin (1.3.70)</option>
               <option value="82">SQL (SQLite 3.27.2)</option>
             </select>
+            <p class="hint" id="languageHint"></p>
           </div>
           
           <div class="form-group">
@@ -128,11 +137,37 @@
           
         </div>
 
-        <!-- Test Cases Section -->
-        <h2 class="test-cases-header">Test Cases</h2>
-        <div id="testCasesList" class="test-case-list"></div>
+        <div id="guiReviewFields" class="gui-review-fields" style="display:none;">
+          <div class="grid grid-cols-3">
+            <div class="form-group">
+              <label for="guiProblemType">GUI Problem Type</label>
+              <select id="guiProblemType" class="select">
+                <option value="html">HTML / Web UI</option>
+                <option value="python_graph">Python Graph</option>
+                <option value="ml_visual">ML Visual Output</option>
+                <option value="gui_other">Other GUI Output</option>
+              </select>
+            </div>
 
-        <button type="button" class="btn btn-add" onclick="addTestCase()">+ Add Test Case</button>
+            <div class="form-group" style="grid-column: span 2;">
+              <label for="allowedLibraries">Allowed Libraries</label>
+              <input type="text" id="allowedLibraries" class="input" placeholder="Example: numpy, pandas, matplotlib, seaborn" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="teacherVerificationChecklist">Teacher Verification Checklist</label>
+            <textarea id="teacherVerificationChecklist" class="textarea" rows="5" placeholder="One check per line. Example:&#10;Chart title is visible&#10;Axes labels are correct&#10;Layout is responsive"></textarea>
+          </div>
+        </div>
+
+        <!-- Test Cases Section -->
+        <div id="testCasesSection">
+          <h2 class="test-cases-header">Test Cases</h2>
+          <div id="testCasesList" class="test-case-list"></div>
+
+          <button type="button" class="btn btn-add" onclick="addTestCase()">+ Add Test Case</button>
+        </div>
 
         <button type="button" class="btn btn-submit" onclick="handleSubmit()">Submit Problem</button>
       </div>

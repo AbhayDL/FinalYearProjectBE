@@ -116,6 +116,109 @@ function setQueryAnsweredBanner(message) {
   }
 }
 
+function escapeHtml(text) {
+  return String(text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function renderExecutionOutput(result = {}) {
+  if (!outputContent) return;
+
+  const stdout = result.stdout ? escapeHtml(result.stdout) : "";
+  const stderr = result.stderr ? escapeHtml(result.stderr) : "";
+  const artifacts = Array.isArray(result.artifacts) ? result.artifacts : [];
+
+  const artifactHtml = artifacts
+    .filter((artifact) => artifact.type === "image" && artifact.dataUrl)
+    .map((artifact) => `
+      <div class="execution-artifact-card">
+        <div class="execution-artifact-title">${escapeHtml(artifact.name || "Generated Output")}</div>
+        <img src="${artifact.dataUrl}" alt="${escapeHtml(artifact.name || "Generated output")}" class="execution-artifact-image">
+      </div>
+    `)
+    .join("");
+
+  outputContent.innerHTML = `
+    ${stderr ? `<div class="execution-text-block error-block">${stderr}</div>` : ""}
+    ${stdout ? `<div class="execution-text-block">${stdout}</div>` : ""}
+    ${artifactHtml}
+    ${!stderr && !stdout && !artifactHtml ? `<div class="execution-text-block">(No output)</div>` : ""}
+  `;
+}
+
+function isGuiReviewProblem(problem = currentProblem) {
+  return Boolean(problem?.guiReviewRequired) || String(problem?.language) === "1001";
+}
+
+function updateProblemModeUI() {
+  const runAllBtn = document.getElementById("run-all-btn");
+  const testCasesPanel = document.querySelector(".test-cases-panel");
+  const submitLabel = document.getElementById("submit-btn");
+
+  if (isGuiReviewProblem()) {
+    if (testCasesPanel) testCasesPanel.style.display = "none";
+    if (runAllBtn) runAllBtn.style.display = "none";
+    if (submitLabel) submitLabel.innerHTML = '<i class="fas fa-paper-plane"></i> Send For Teacher Review';
+    setSubmitEnabled(true, "This GUI-based problem goes directly to teacher review.");
+  } else {
+    if (testCasesPanel) testCasesPanel.style.display = "";
+    if (runAllBtn) runAllBtn.style.display = "";
+    if (submitLabel) submitLabel.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Code';
+  }
+}
+
+function renderProblemConstraints(problem = {}) {
+  const items = [];
+  if (problem.constraints) items.push(problem.constraints);
+  if (Array.isArray(problem.allowedLibraries) && problem.allowedLibraries.length > 0) {
+    items.push(`Allowed libraries: ${problem.allowedLibraries.join(", ")}`);
+  }
+  if (Array.isArray(problem.teacherVerificationChecklist) && problem.teacherVerificationChecklist.length > 0) {
+    items.push(`Teacher review checklist: ${problem.teacherVerificationChecklist.join(" | ")}`);
+  }
+  return items.length > 0 ? items.map((item) => `<li>${escapeHtml(item)}</li>`).join("") : "<li>No constraints specified</li>";
+}
+
+function attachEnhancedRunHandler() {
+  const originalButton = document.getElementById("run-btn");
+  if (!originalButton) return;
+
+  const runButton = originalButton.cloneNode(true);
+  originalButton.replaceWith(runButton);
+
+  runButton.addEventListener("click", async () => {
+    const source_code = window.editor.getValue();
+    const language_id = currentLanguageId;
+    const stdin = document.getElementById("stdin-input").value;
+
+    if (!language_id) {
+      alert("Select a language first!");
+      return;
+    }
+
+    statusText.textContent = "Running your code...";
+    outputContent.innerHTML = "";
+
+    try {
+      const res = await fetchWithExecutor("/api/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source_code, language_id: parseInt(language_id, 10), stdin }),
+      });
+
+      const data = await res.json();
+      renderExecutionOutput(data);
+      statusText.textContent = data.stderr ? "Runtime error occurred." : "Code executed successfully.";
+    } catch (error) {
+      console.error(error);
+      outputContent.textContent = "Error: Could not connect to backend. Make sure the server is running at " + EXECUTOR_BASE_URL;
+      statusText.textContent = "Backend connection failed.";
+    }
+  });
+}
+
 function getDraftStorageKey(problemId) {
   return `student_draft_${problemId || "unknown"}`;
 }
@@ -217,9 +320,13 @@ async function loadSavedSubmission() {
             : "Saved code loaded successfully."
     );
     setQueryAnsweredBanner(
-      !submission.queryPending && submission.teacherAnsweredAt
-        ? `Your query was answered on ${new Date(submission.teacherAnsweredAt).toLocaleString()}. Check the code comments below.`
-        : ""
+      submission.guiReview?.teacherStatus === "approved"
+        ? "Teacher approved your GUI output."
+        : submission.guiReview?.teacherStatus === "needs_changes"
+          ? `Teacher requested a resubmission${submission.guiReview.teacherNote ? `: ${submission.guiReview.teacherNote}` : "."}`
+          : !submission.queryPending && submission.teacherAnsweredAt
+            ? `Your query was answered on ${new Date(submission.teacherAnsweredAt).toLocaleString()}. Check the code comments below.`
+            : ""
     );
 
     const localDraft = loadLocalDraft(currentProblem._id);
@@ -376,7 +483,8 @@ function normalizeLanguageName(lang) {
     63: "JavaScript",
     60: "Go",
     73: "Rust",
-    72: "Ruby"
+    72: "Ruby",
+    1001: "HTML/CSS/JS"
   };
   return map[lang?.id] || "Language";
 }
@@ -595,6 +703,11 @@ async function loadProblem() {
 
     currentProblem = await res.json();
 
+    if (String(currentProblem.language) === "1001") {
+      window.location.href = `web-ide.html?problem_id=${encodeURIComponent(problemId)}`;
+      return;
+    }
+
     // Update problem title
     document.getElementById("problem-title").textContent = currentProblem.title || "Untitled Problem";
     
@@ -633,11 +746,7 @@ async function loadProblem() {
     // Update constraints
     const constraintsList = document.getElementById("constraints-list");
     if (constraintsList) {
-      if (currentProblem.constraints) {
-        constraintsList.innerHTML = `<li>${currentProblem.constraints}</li>`;
-      } else {
-        constraintsList.innerHTML = "<li>No constraints specified</li>";
-      }
+      constraintsList.innerHTML = renderProblemConstraints(currentProblem);
     }
 
     // Set editor content
@@ -645,11 +754,14 @@ async function loadProblem() {
       window.editor.setValue(`// Write your solution here for: ${currentProblem.title}\n`);
     }
 
-    const visibleCount = (currentProblem.testCases || []).length;
-    if (visibleCount === 0) {
-      setSubmitEnabled(true, "No visible test cases. You can submit directly.");
-    } else {
-      setSubmitEnabled(false, "Run visible test cases to enable submission.");
+    updateProblemModeUI();
+    if (!isGuiReviewProblem()) {
+      const visibleCount = (currentProblem.testCases || []).length;
+      if (visibleCount === 0) {
+        setSubmitEnabled(true, "No visible test cases. You can submit directly.");
+      } else {
+        setSubmitEnabled(false, "Run visible test cases to enable submission.");
+      }
     }
 
     await loadSavedSubmission();
@@ -730,7 +842,7 @@ document.getElementById("submit-btn").addEventListener("click", async () => {
   }
 
   const visibleCount = (currentProblem.testCases || []).length;
-  if (visibleCount > 0 && !canSubmit) {
+  if (!isGuiReviewProblem() && visibleCount > 0 && !canSubmit) {
     alert("Run visible test cases and pass them before submitting.");
     return;
   }
@@ -744,7 +856,7 @@ document.getElementById("submit-btn").addEventListener("click", async () => {
 
   submitBtn.disabled = true;
   isSubmitting = true;
-  statusText.textContent = "Running hidden test cases...";
+  statusText.textContent = isGuiReviewProblem() ? "Sending submission to teacher review..." : "Running hidden test cases...";
   outputContent.textContent = "";
 
   try {
@@ -757,7 +869,15 @@ document.getElementById("submit-btn").addEventListener("click", async () => {
       body: JSON.stringify({
         problemId: currentProblem._id,
         source_code,
-        language_id: parseInt(language_id)
+        language_id: parseInt(language_id),
+        guiEvidence: isGuiReviewProblem()
+          ? {
+              hasEvidence: true,
+              notes: Array.isArray(currentProblem.teacherVerificationChecklist) && currentProblem.teacherVerificationChecklist.length
+                ? `Teacher checklist:\n${currentProblem.teacherVerificationChecklist.join('\n')}`
+                : ""
+            }
+          : undefined
       })
     });
 
@@ -766,7 +886,10 @@ document.getElementById("submit-btn").addEventListener("click", async () => {
       throw new Error(data.message || "Submission failed");
     }
 
-    if (data.status === "passed") {
+    if (data.status === "pending_teacher_review") {
+      statusText.textContent = "Submission sent to teacher review.";
+      outputContent.textContent = "This GUI-based problem does not use automatic test cases. The teacher will review your output and code.";
+    } else if (data.status === "passed") {
       statusText.textContent = "Hidden test cases passed. Submission stored.";
       outputContent.textContent = `Passed ${data.passedCount}/${data.totalCount} hidden test cases.`;
     } else {
@@ -885,4 +1008,5 @@ document.getElementById("run-all-btn")?.addEventListener("click", async () => {
 });
 
 document.getElementById("save-btn")?.addEventListener("click", saveCode);
+attachEnhancedRunHandler();
 

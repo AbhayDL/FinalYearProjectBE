@@ -93,6 +93,7 @@ let allProblems = [];
 let selectedProblemId = "";
 let selectedStudentId = "";
 let selectedSubmissionId = "";
+let currentReviewContext = null;
 const reviewParams = new URLSearchParams(window.location.search);
 const requestedProblemId = reviewParams.get("problem_id");
 const requestedStudentId = reviewParams.get("student_id");
@@ -291,6 +292,15 @@ function getTeacherSummaryStatus(student) {
   if (student.hasPassed) return { className: "passed", label: "Solved" };
   if (student.queryStatus === "revised_by_student") return { className: "query", label: "Revised Query" };
   if (student.queryStatus === "open") return { className: "query", label: "Query" };
+  if (student.guiReviewStatus === "needs_changes") {
+    return { className: "failed", label: "Resubmit GUI" };
+  }
+  if (student.guiReviewStatus === "approved") {
+    return { className: "answered", label: "GUI Approved" };
+  }
+  if (student.guiReviewStatus === "pending") {
+    return { className: "answered", label: "GUI Review" };
+  }
   if (student.queryStatus === "answered") return { className: "answered", label: "Answered" };
   if (student.hasSubmitted) return { className: "failed", label: "Attempted" };
   return { className: "pending", label: "Not yet" };
@@ -378,6 +388,7 @@ function renderCompletionTable() {
           ? `<div class="table-actions">
               <button class="btn-secondary btn-action" onclick="viewSubmissionCode('${s.id}', '${s.submissionId || ""}')">View Code</button>
               ${s.queryPending ? '<span class="student-meta-pill">Query Pending</span>' : ""}
+              ${s.hasGuiEvidence ? '<span class="student-meta-pill">GUI Proof</span>' : ""}
             </div>`
           : '<span class="student-meta-pill">No submission</span>'}
       </td>
@@ -411,6 +422,7 @@ function renderSubmissionViewerEmpty(message) {
 
 function getLanguageLabel(languageId) {
   const map = {
+    1001: "HTML/CSS/JS",
     71: "Python 3",
     62: "Java",
     54: "C++",
@@ -421,6 +433,100 @@ function getLanguageLabel(languageId) {
     72: "Ruby"
   };
   return map[Number(languageId)] || String(languageId || "-");
+}
+
+function escapeAttribute(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;");
+}
+
+function isGuiCapableSubmission(problem = {}, submission = {}) {
+  if (Number(submission?.languageId) === 1001) return true;
+  const haystack = `${problem?.title || ""} ${problem?.description || ""} ${problem?.outputFormat || ""} ${problem?.inputFormat || ""}`.toLowerCase();
+  return /(graph|plot|chart|gui|visual|visualization|html|page|canvas|dashboard)/.test(haystack);
+}
+
+function renderGuiRuntimeSection() {
+  return `
+    <div class="gui-runtime-panel">
+      <div class="gui-runtime-header">
+        <h4>Live GUI Output</h4>
+        <button class="btn-secondary" type="button" onclick="runTeacherGuiOutput()">Run GUI Output</button>
+      </div>
+      <div id="gui-runtime-output" class="gui-runtime-output">
+        <p class="submission-viewer-empty">Run the reviewed code to preview the student output here.</p>
+      </div>
+    </div>
+  `;
+}
+
+function renderExecutionArtifactsHtml(result = {}) {
+  const stdout = result.stdout ? `<div class="execution-text-block">${escapeHtml(result.stdout)}</div>` : "";
+  const stderr = result.stderr ? `<div class="execution-text-block error-block">${escapeHtml(result.stderr)}</div>` : "";
+  const artifactHtml = (Array.isArray(result.artifacts) ? result.artifacts : [])
+    .filter((artifact) => artifact.type === "image" && artifact.dataUrl)
+    .map((artifact) => `
+      <div class="gui-proof-teacher-card">
+        <span>${escapeHtml(artifact.name || "Generated Output")}</span>
+        <img src="${artifact.dataUrl}" alt="${escapeHtml(artifact.name || "Generated output")}" class="gui-proof-image">
+      </div>
+    `)
+    .join("");
+
+  return `
+    ${stderr}
+    ${stdout}
+    ${artifactHtml ? `<div class="gui-proof-teacher-grid">${artifactHtml}</div>` : ""}
+    ${!stderr && !stdout && !artifactHtml ? `<p class="submission-viewer-empty">(No GUI output returned.)</p>` : ""}
+  `;
+}
+
+function renderGuiProofSection(problem = {}, submission = {}) {
+  const guiReview = submission.guiReview || {};
+  const shouldShowGui = isGuiCapableSubmission(problem, submission) || guiReview?.hasEvidence;
+  if (!shouldShowGui) {
+    return "";
+  }
+
+  const screenshotBlock = guiReview.screenshotDataUrl
+    ? `<div class="gui-proof-teacher-card">
+        <span>Screenshot Proof</span>
+        <img src="${guiReview.screenshotDataUrl}" alt="Student GUI proof" class="gui-proof-image">
+      </div>`
+    : "";
+  const htmlBlock = guiReview.htmlPreview
+    ? `<div class="gui-proof-teacher-card">
+        <span>HTML Preview</span>
+        <iframe class="gui-proof-frame" sandbox="" srcdoc="${escapeAttribute(guiReview.htmlPreview)}"></iframe>
+      </div>`
+    : "";
+
+  return `
+    <div class="gui-review-panel">
+      <h4>GUI Output Proof</h4>
+      ${guiReview.notes ? `<div class="gui-proof-teacher-card"><span>Student Notes</span><p>${escapeHtml(guiReview.notes)}</p></div>` : ""}
+      <div class="gui-proof-teacher-grid">
+        ${screenshotBlock}
+        ${htmlBlock}
+      </div>
+      ${renderGuiRuntimeSection()}
+      <div class="gui-review-controls">
+        <label>
+          <span>GUI Review Status</span>
+          <select id="gui-teacher-status">
+            <option value="pending" ${guiReview.teacherStatus === "pending" ? "selected" : ""}>Pending</option>
+            <option value="approved" ${guiReview.teacherStatus === "approved" ? "selected" : ""}>Approved</option>
+            <option value="needs_changes" ${guiReview.teacherStatus === "needs_changes" ? "selected" : ""}>Needs Changes</option>
+          </select>
+        </label>
+        <label>
+          <span>Teacher Review Note</span>
+          <textarea id="gui-teacher-note" placeholder="What should the student fix or what was approved?">${escapeHtml(guiReview.teacherNote || "")}</textarea>
+        </label>
+      </div>
+    </div>
+  `;
 }
 
 async function fetchTeacherSubmissionReview(token, studentId, submissionId) {
@@ -486,6 +592,11 @@ async function viewSubmissionCode(studentId, submissionId = "") {
     const student = data.student || {};
     selectedStudentId = review.studentId || studentId;
     selectedSubmissionId = review.submissionId || submissionId || submission.id || "";
+    currentReviewContext = {
+      problem: data.problem || {},
+      student,
+      submission
+    };
 
     container.innerHTML = `
       <div class="submission-viewer-card">
@@ -531,12 +642,13 @@ async function viewSubmissionCode(studentId, submissionId = "") {
           <h4>Teacher Reviewed Code</h4>
           <textarea id="teacher-code-editor" class="submission-code-editor" spellcheck="false">${escapeHtml(submission.teacherReviewedCode || submission.sourceCode || "// No code found")}</textarea>
         </div>
+        ${renderGuiProofSection(data.problem || {}, submission)}
         <div class="submission-editor-actions">
           <label class="resolve-query-toggle">
             <input type="checkbox" id="resolve-query-toggle" ${submission.queryPending ? "checked" : ""}>
             <span>Mark query as resolved when saving edited code</span>
           </label>
-          <button class="btn-primary" onclick="saveTeacherEditedCode('${submission.id}', ${Number(submission.languageId) || 0})">Save Edited Code</button>
+          <button class="${isGuiCapableSubmission(data.problem || {}, submission) ? 'btn-secondary' : 'btn-primary'}" onclick="saveTeacherEditedCode('${submission.id}', ${Number(submission.languageId) || 0})">${isGuiCapableSubmission(data.problem || {}, submission) ? 'Save Review Decision' : 'Save Edited Code'}</button>
         </div>
       </div>
     `;
@@ -545,10 +657,60 @@ async function viewSubmissionCode(studentId, submissionId = "") {
     renderSubmissionViewerEmpty(error.message || "Failed to load submission code.");
   }
 }
+
+async function runTeacherGuiOutput() {
+  const runtimeOutput = document.getElementById("gui-runtime-output");
+  const codeInput = document.getElementById("teacher-code-editor");
+  const languageId = Number(currentReviewContext?.submission?.languageId || 0);
+  const problem = currentReviewContext?.problem || {};
+  const sourceCode = String(codeInput?.value || "");
+
+  if (!runtimeOutput || !sourceCode.trim()) return;
+
+  if (languageId === 1001) {
+    runtimeOutput.innerHTML = `
+      <iframe class="gui-proof-frame" sandbox="allow-scripts" srcdoc="${escapeAttribute(sourceCode)}"></iframe>
+    `;
+    return;
+  }
+
+  runtimeOutput.innerHTML = "<p>Running GUI output...</p>";
+
+  try {
+    const res = await fetch(`${EFFECTIVE_AUTH_BASE}/api/execute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source_code: sourceCode,
+        language_id: languageId,
+        stdin: ""
+      })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.message || "Failed to execute reviewed code");
+    }
+
+    runtimeOutput.innerHTML = renderExecutionArtifactsHtml(data);
+    if (!Array.isArray(data.artifacts) || data.artifacts.length === 0) {
+      runtimeOutput.insertAdjacentHTML(
+        "beforeend",
+        `<p class="submission-viewer-empty">${escapeHtml(problem.outputFormat || "No image output was generated. If this should render a chart, make sure the code creates a matplotlib figure.")}</p>`
+      );
+    }
+  } catch (error) {
+    console.error("Teacher GUI run failed:", error);
+    runtimeOutput.innerHTML = `<div class="execution-text-block error-block">${escapeHtml(error.message || "Failed to run GUI output.")}</div>`;
+  }
+}
+
 async function saveTeacherEditedCode(submissionId, languageId) {
   const token = localStorage.getItem("teacherToken");
   const input = document.getElementById("teacher-code-editor");
   const resolveQuery = document.getElementById("resolve-query-toggle");
+  const guiTeacherStatus = document.getElementById("gui-teacher-status");
+  const guiTeacherNote = document.getElementById("gui-teacher-note");
   const sourceCode = String(input?.value || "");
 
   if (!token || !submissionId) return;
@@ -569,7 +731,9 @@ async function saveTeacherEditedCode(submissionId, languageId) {
         body: JSON.stringify({
           sourceCode,
           languageId,
-          resolveQuery: Boolean(resolveQuery?.checked)
+          resolveQuery: Boolean(resolveQuery?.checked),
+          guiTeacherStatus: guiTeacherStatus?.value || "not_required",
+          guiTeacherNote: guiTeacherNote?.value || ""
         })
       }
     );

@@ -117,6 +117,27 @@ body {
   color: #fecdd3;
 }
 
+.checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  color: #e2e8f0;
+  line-height: 1.5;
+}
+
+.checkbox-label input {
+  margin-top: 0.2rem;
+  accent-color: var(--accent);
+}
+
+.gui-review-fields {
+  margin-bottom: 1.5rem;
+  padding: 1.2rem;
+  border-radius: 1rem;
+  background: rgba(2, 6, 23, 0.35);
+  border: 1px solid rgba(56, 189, 248, 0.18);
+}
+
 .input,
 .textarea,
 .select {

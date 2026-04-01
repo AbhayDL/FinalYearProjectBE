@@ -18,6 +18,14 @@ const problemSchema = new mongoose.Schema(
     inputFormat: String,
     outputFormat: String,
     constraints: String,
+    guiReviewRequired: { type: Boolean, default: false },
+    guiProblemType: {
+      type: String,
+      enum: ["standard", "html", "python_graph", "ml_visual", "gui_other"],
+      default: "standard"
+    },
+    allowedLibraries: { type: [String], default: [] },
+    teacherVerificationChecklist: { type: [String], default: [] },
 
     year: String,
     semester: String,

@@ -1,6 +1,41 @@
 const Problem = require("../models/Problem");
 const Subject = require("../models/Subject");
 
+function normalizeProblemPayload(body = {}) {
+  const normalized = { ...body };
+  normalized.guiReviewRequired = Boolean(body.guiReviewRequired) || String(body.language || "") === "1001";
+
+  const rawLibraries = Array.isArray(body.allowedLibraries)
+    ? body.allowedLibraries
+    : String(body.allowedLibraries || "").split(",");
+  normalized.allowedLibraries = rawLibraries
+    .map((item) => String(item || "").trim())
+    .filter(Boolean);
+
+  const rawChecklist = Array.isArray(body.teacherVerificationChecklist)
+    ? body.teacherVerificationChecklist
+    : String(body.teacherVerificationChecklist || "").split(/\r?\n/);
+  normalized.teacherVerificationChecklist = rawChecklist
+    .map((item) => String(item || "").trim())
+    .filter(Boolean);
+
+  if (!normalized.guiProblemType) {
+    normalized.guiProblemType = normalized.guiReviewRequired
+      ? (String(body.language || "") === "1001" ? "html" : "gui_other")
+      : "standard";
+  }
+
+  if (!normalized.guiReviewRequired) {
+    normalized.guiProblemType = "standard";
+  }
+
+  if (normalized.guiReviewRequired) {
+    normalized.testCases = [];
+  }
+
+  return normalized;
+}
+
 // ADD Problem
 exports.addProblem = async (req, res) => {
   try {
@@ -25,7 +60,7 @@ exports.addProblem = async (req, res) => {
       return res.status(403).json({ message: "Subject not assigned to this teacher" });
     }
 
-    const problem = new Problem({ ...req.body, createdBy: req.user.email });
+    const problem = new Problem({ ...normalizeProblemPayload(req.body), createdBy: req.user.email });
     const savedProblem = await problem.save();
 
     res.status(201).json({
@@ -122,7 +157,7 @@ exports.updateProblem = async (req, res) => {
       }
     }
 
-    const update = { ...req.body };
+    const update = normalizeProblemPayload(req.body);
     delete update.createdBy;
 
     const updated = await Problem.findByIdAndUpdate(id, update, {

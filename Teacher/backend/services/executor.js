@@ -10,6 +10,15 @@ const LANGUAGE_CONFIG = {
     cleanupOutput: true,
     outputBase: "a.out",
   },
+  62: {
+    extension: ".java",
+    sourceFileName: "Main.java",
+    command: ["openjdk:17-slim", "/bin/sh", "-lc", () => "javac Main.java && java Main"],
+  },
+  63: {
+    extension: ".js",
+    command: ["node:20-alpine", "node", ({ fileName }) => fileName],
+  },
   54: {
     extension: ".cpp",
     command: ["gcc:latest", "/bin/sh", "-lc", ({ fileName, outputName }) => `g++ ${fileName} -O2 -std=c++17 -o ${outputName} && ./${outputName}`],
@@ -18,7 +27,8 @@ const LANGUAGE_CONFIG = {
   },
   71: {
     extension: ".py",
-    command: ["python:3.10", "python", ({ fileName }) => fileName],
+    images: ["codeassplat-python-ml:latest", "python:3.10"],
+    command: [({ image }) => image, "python", ({ fileName }) => fileName],
   },
   72: {
     extension: ".rb",
@@ -34,17 +44,20 @@ const LANGUAGE_CONFIG = {
 
 const SUPPORTED_LANGUAGES = [
   { id: 71, name: "Python 3" },
+  { id: 62, name: "Java" },
+  { id: 63, name: "JavaScript" },
   { id: 50, name: "C" },
   { id: 54, name: "C++" },
   { id: 73, name: "Rust" },
   { id: 72, name: "Ruby" },
+  { id: 1001, name: "HTML/CSS/JS", mode: "web" },
 ];
 
-function buildDockerArgs(config, tmpDir, fileName) {
+function buildDockerArgs(config, tmpDir, fileName, image) {
   const outputName = config.outputName || "";
   const mount = `${tmpDir}:/workspace`;
   const command = config.command.map((part) =>
-    typeof part === "function" ? part({ fileName, outputName }) : part
+    typeof part === "function" ? part({ fileName, outputName, image }) : part
   );
 
   return [
@@ -65,60 +78,137 @@ function buildDockerArgs(config, tmpDir, fileName) {
   ];
 }
 
+function getArtifactMimeType(fileName) {
+  const ext = path.extname(fileName).toLowerCase();
+  if (ext === ".png") return "image/png";
+  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+  if (ext === ".gif") return "image/gif";
+  if (ext === ".svg") return "image/svg+xml";
+  return "application/octet-stream";
+}
+
+async function collectArtifacts(workDir) {
+  try {
+    const entries = await fs.readdir(workDir, { withFileTypes: true });
+    const artifactFiles = entries
+      .filter((entry) => entry.isFile() && /\.(png|jpe?g|gif|svg)$/i.test(entry.name))
+      .map((entry) => entry.name)
+      .sort((left, right) => left.localeCompare(right));
+
+    const artifacts = [];
+    for (const fileName of artifactFiles) {
+      const filePath = path.join(workDir, fileName);
+      const buffer = await fs.readFile(filePath);
+      artifacts.push({
+        type: "image",
+        name: fileName,
+        mimeType: getArtifactMimeType(fileName),
+        dataUrl: `data:${getArtifactMimeType(fileName)};base64,${buffer.toString("base64")}`
+      });
+    }
+    return artifacts;
+  } catch (error) {
+    return [];
+  }
+}
+
+function buildPythonSource(sourceCode = "") {
+  return `import os
+try:
+    import matplotlib
+    matplotlib.use("Agg")
+except Exception:
+    pass
+
+${sourceCode}
+
+try:
+    import matplotlib.pyplot as plt
+    figure_numbers = list(plt.get_fignums())
+    for index, figure_number in enumerate(figure_numbers, start=1):
+        figure = plt.figure(figure_number)
+        figure.savefig(os.path.join(os.getcwd(), f"plot-{index}.png"))
+except Exception:
+    pass
+`;
+}
+
 async function executeCode(sourceCode, languageId, stdin = "") {
   const baseConfig = LANGUAGE_CONFIG[Number(languageId)];
   if (!baseConfig) {
-    return { stdout: null, stderr: `Language id ${languageId} is not supported yet.`, exitCode: 1 };
+    return { stdout: null, stderr: `Language id ${languageId} is not supported yet.`, exitCode: 1, artifacts: [] };
+  }
+  if (Number(languageId) === 1001) {
+    return {
+      stdout: null,
+      stderr: "HTML/CSS/JS problems use the Web IDE preview and teacher review flow instead of console execution.",
+      exitCode: 1,
+      artifacts: []
+    };
   }
 
-  const tmpDir = os.tmpdir();
   const uniqueId = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-  const fileName = `code-${uniqueId}${baseConfig.extension}`;
+  const workDir = await fs.mkdtemp(path.join(os.tmpdir(), `codeassplat-${uniqueId}-`));
+  const fileName = baseConfig.sourceFileName || `code-${uniqueId}${baseConfig.extension}`;
   const outputName = baseConfig.outputBase ? `${baseConfig.outputBase}-${uniqueId}` : "";
-  const filePath = path.join(tmpDir, fileName);
+  const filePath = path.join(workDir, fileName);
   const config = { ...baseConfig, outputName };
-  const outputPath = outputName ? path.join(tmpDir, outputName) : null;
+  const outputPath = outputName ? path.join(workDir, outputName) : null;
+  const imagesToTry = Array.isArray(config.images) && config.images.length > 0
+    ? config.images
+    : [config.command[0]];
 
   try {
-    await fs.writeFile(filePath, sourceCode || "", "utf8");
+    const codeToWrite = Number(languageId) === 71 ? buildPythonSource(sourceCode || "") : (sourceCode || "");
+    await fs.writeFile(filePath, codeToWrite, "utf8");
+    let lastResult = { stdout: null, stderr: "Execution failed", exitCode: 1, artifacts: [] };
 
-    const args = buildDockerArgs(config, tmpDir, fileName);
-    const proc = spawn("docker", args);
-    let stdout = "";
-    let stderr = "";
+    for (const image of imagesToTry) {
+      const args = buildDockerArgs(config, workDir, fileName, image);
+      const proc = spawn("docker", args);
+      let stdout = "";
+      let stderr = "";
 
-    const result = await new Promise((resolve) => {
-      const killTimer = setTimeout(() => {
-        try {
-          proc.kill();
-        } catch (error) {}
-      }, 10000);
+      const result = await new Promise((resolve) => {
+        const killTimer = setTimeout(() => {
+          try {
+            proc.kill();
+          } catch (error) {}
+        }, 10000);
 
-      proc.stdout.on("data", (data) => {
-        stdout += data.toString();
+        proc.stdout.on("data", (data) => {
+          stdout += data.toString();
+        });
+
+        proc.stderr.on("data", (data) => {
+          stderr += data.toString();
+        });
+
+        proc.on("close", (exitCode) => {
+          clearTimeout(killTimer);
+          resolve({ stdout: stdout || null, stderr: stderr || null, exitCode });
+        });
+
+        proc.on("error", (error) => {
+          clearTimeout(killTimer);
+          resolve({ stdout: null, stderr: error.message, exitCode: 1 });
+        });
+
+        if (stdin) proc.stdin.write(stdin);
+        proc.stdin.end();
       });
 
-      proc.stderr.on("data", (data) => {
-        stderr += data.toString();
-      });
+      const artifacts = await collectArtifacts(workDir);
+      lastResult = { ...result, artifacts };
+      const imageMissing = (result.stderr || "").includes("pull access denied") || (result.stderr || "").includes("No such image");
+      if (!imageMissing) {
+        return lastResult;
+      }
+    }
 
-      proc.on("close", (exitCode) => {
-        clearTimeout(killTimer);
-        resolve({ stdout: stdout || null, stderr: stderr || null, exitCode });
-      });
-
-      proc.on("error", (error) => {
-        clearTimeout(killTimer);
-        resolve({ stdout: null, stderr: error.message, exitCode: 1 });
-      });
-
-      if (stdin) proc.stdin.write(stdin);
-      proc.stdin.end();
-    });
-
-    return result;
+    return lastResult;
   } catch (error) {
-    return { stdout: null, stderr: error.message, exitCode: 1 };
+    return { stdout: null, stderr: error.message, exitCode: 1, artifacts: [] };
   } finally {
     try {
       await fs.unlink(filePath);
@@ -129,6 +219,10 @@ async function executeCode(sourceCode, languageId, stdin = "") {
         await fs.unlink(outputPath);
       } catch (error) {}
     }
+
+    try {
+      await fs.rm(workDir, { recursive: true, force: true });
+    } catch (error) {}
   }
 }
 

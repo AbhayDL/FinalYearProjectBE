@@ -41,6 +41,35 @@ function mapSubmissionComments(comments = []) {
   }));
 }
 
+function normalizeGuiReviewPayload(guiEvidence = {}, previousGuiReview = {}) {
+  const screenshotDataUrl = String(guiEvidence?.screenshotDataUrl || "").trim();
+  const htmlPreview = String(guiEvidence?.htmlPreview || "").trim();
+  const notes = String(guiEvidence?.notes || "").trim();
+  const hasEvidence = Boolean(guiEvidence?.hasEvidence) || Boolean(screenshotDataUrl) || Boolean(htmlPreview) || Boolean(notes);
+
+  return {
+    hasEvidence,
+    screenshotDataUrl,
+    htmlPreview,
+    notes,
+    teacherStatus: hasEvidence ? "pending" : "not_required",
+    teacherNote: hasEvidence ? "" : previousGuiReview?.teacherNote || "",
+    teacherReviewedAt: hasEvidence ? null : previousGuiReview?.teacherReviewedAt || null
+  };
+}
+
+function mapGuiReview(guiReview = {}) {
+  return {
+    hasEvidence: Boolean(guiReview?.hasEvidence),
+    screenshotDataUrl: guiReview?.screenshotDataUrl || "",
+    htmlPreview: guiReview?.htmlPreview || "",
+    notes: guiReview?.notes || "",
+    teacherStatus: guiReview?.teacherStatus || "not_required",
+    teacherNote: guiReview?.teacherNote || "",
+    teacherReviewedAt: guiReview?.teacherReviewedAt || null
+  };
+}
+
 function getDisplaySourceCode(submission) {
   if (submission.teacherReviewedCode) return submission.teacherReviewedCode;
   if (submission.studentSourceCode) return submission.studentSourceCode;
@@ -53,6 +82,10 @@ function getNextQueryStatus(previousSubmission, hasQuery) {
     return "revised_by_student";
   }
   return "open";
+}
+
+function isGuiReviewProblem(problem = {}) {
+  return Boolean(problem?.guiReviewRequired) || String(problem?.language || "") === "1001";
 }
 
 async function verifyTeacherProblemAccess(problemId, teacherUser) {
@@ -100,7 +133,7 @@ function ensureStudentMatchesAccess(student, access = {}) {
 // Student submit: run hidden test cases and store submission
 exports.saveSolution = async (req, res) => {
   try {
-    const { problemId, source_code, language_id, hasQuery } = req.body;
+    const { problemId, source_code, language_id, hasQuery, guiEvidence } = req.body;
 
     if (!problemId || !source_code || !language_id) {
       return res.status(400).json({
@@ -121,9 +154,10 @@ exports.saveSolution = async (req, res) => {
     const existingSubmission = await Submission.findOne({
       student: req.user._id,
       problem: problem._id
-    }).select("status passedCount totalCount score teacherAnsweredAt queryStatus teacherReviewedCode");
+    }).select("status passedCount totalCount score teacherAnsweredAt queryStatus teacherReviewedCode guiReview");
 
     const nextQueryStatus = getNextQueryStatus(existingSubmission, Boolean(hasQuery));
+    const nextGuiReview = normalizeGuiReviewPayload(guiEvidence, existingSubmission?.guiReview || {});
 
     const update = {
       $set: {
@@ -138,7 +172,8 @@ exports.saveSolution = async (req, res) => {
         queryPending: Boolean(hasQuery),
         queryStatus: nextQueryStatus,
         teacherAnsweredAt: hasQuery ? null : existingSubmission?.teacherAnsweredAt || null,
-        lastSavedBy: "student"
+        lastSavedBy: "student",
+        guiReview: nextGuiReview
       }
     };
 
@@ -154,7 +189,8 @@ exports.saveSolution = async (req, res) => {
         : "Code saved successfully.",
       submissionId: submission._id,
       queryPending: submission.queryPending,
-      queryStatus: submission.queryStatus
+      queryStatus: submission.queryStatus,
+      guiReview: mapGuiReview(submission.guiReview)
     });
   } catch (error) {
     console.error("Save failed:", error.message);
@@ -164,7 +200,7 @@ exports.saveSolution = async (req, res) => {
 
 exports.submitSolution = async (req, res) => {
   try {
-    const { problemId, source_code, language_id } = req.body;
+    const { problemId, source_code, language_id, guiEvidence } = req.body;
 
     if (!problemId || !source_code || !language_id) {
       return res.status(400).json({
@@ -180,6 +216,61 @@ exports.submitSolution = async (req, res) => {
     const problem = await Problem.findById(problemId).lean();
     if (!problem) {
       return res.status(404).json({ message: "Problem not found" });
+    }
+
+    const guiReviewMode = isGuiReviewProblem(problem);
+    const nextGuiReview = guiReviewMode
+      ? normalizeGuiReviewPayload(guiEvidence, {})
+      : {
+          hasEvidence: false,
+          screenshotDataUrl: "",
+          htmlPreview: "",
+          notes: "",
+          teacherStatus: "not_required",
+          teacherNote: "",
+          teacherReviewedAt: null
+        };
+
+    if (guiReviewMode) {
+      const now = new Date();
+      const submission = await Submission.findOneAndUpdate(
+        { student: req.user._id, problem: problem._id },
+        {
+          $set: {
+            sourceCode: source_code,
+            studentSourceCode: source_code,
+            teacherReviewedCode: "",
+            languageId: parsedLanguageId,
+            status: "saved",
+            passedCount: 0,
+            totalCount: 0,
+            score: 0,
+            queryPending: false,
+            queryStatus: "none",
+            teacherAnsweredAt: null,
+            lastSavedBy: "student",
+            guiReview: {
+              ...nextGuiReview,
+              teacherStatus: "pending",
+              teacherNote: "",
+              teacherReviewedAt: null
+            },
+            updatedAt: now
+          },
+          $setOnInsert: { createdAt: now }
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      );
+
+      return res.json({
+        message: "GUI-based submission sent directly to teacher review.",
+        status: "pending_teacher_review",
+        passedCount: 0,
+        totalCount: 0,
+        score: 0,
+        submissionId: submission._id,
+        guiReview: mapGuiReview(submission.guiReview)
+      });
     }
 
     const hiddenTestCases = (problem.testCases || []).filter(
@@ -223,6 +314,15 @@ exports.submitSolution = async (req, res) => {
           queryStatus: "none",
           teacherAnsweredAt: null,
           lastSavedBy: "student",
+          guiReview: {
+            hasEvidence: false,
+            screenshotDataUrl: "",
+            htmlPreview: "",
+            notes: "",
+            teacherStatus: "not_required",
+            teacherNote: "",
+            teacherReviewedAt: null
+          },
           updatedAt: now
         },
         $setOnInsert: { createdAt: now }
@@ -268,7 +368,7 @@ exports.getProblemSubmissionSummary = async (req, res) => {
 
     const submissions = await Submission.find({ problem: problemId })
       .sort({ updatedAt: -1 })
-      .select("student status score queryPending queryStatus teacherAnsweredAt createdAt updatedAt");
+      .select("student status score queryPending queryStatus teacherAnsweredAt createdAt updatedAt guiReview");
 
     const latestByStudent = new Map();
     for (const sub of submissions) {
@@ -287,6 +387,8 @@ exports.getProblemSubmissionSummary = async (req, res) => {
         hasSubmitted: Boolean(latest),
         queryPending: latest ? Boolean(latest.queryPending) : false,
         queryStatus: latest ? latest.queryStatus : "none",
+        hasGuiEvidence: latest ? Boolean(latest.guiReview?.hasEvidence) : false,
+        guiReviewStatus: latest ? latest.guiReview?.teacherStatus || "not_required" : "not_required",
         teacherAnsweredAt: latest ? latest.teacherAnsweredAt : null,
         hasPassed: latest ? latest.status === "passed" : false,
         submissionStatus: latest ? latest.status : "pending",
@@ -314,7 +416,7 @@ exports.getSubmissionByIdForTeacher = async (req, res) => {
     const { submissionId } = req.params;
 
     const submission = await Submission.findById(submissionId)
-      .populate("problem", "title subject year semester createdBy")
+      .populate("problem", "title subject year semester createdBy description inputFormat outputFormat language")
       .populate("student", "name email year semester isActive role")
       .populate("comments.author", "name email")
       .lean();
@@ -356,7 +458,11 @@ exports.getSubmissionByIdForTeacher = async (req, res) => {
       problem: {
         id: submission.problem?._id,
         title: submission.problem?.title,
-        subject: submission.problem?.subject
+        subject: submission.problem?.subject,
+        description: submission.problem?.description || "",
+        inputFormat: submission.problem?.inputFormat || "",
+        outputFormat: submission.problem?.outputFormat || "",
+        language: submission.problem?.language
       },
       student: student || {
         _id: String(studentId || ""),
@@ -380,6 +486,7 @@ exports.getSubmissionByIdForTeacher = async (req, res) => {
         queryStatus: submission.queryStatus || "none",
         teacherAnsweredAt: submission.teacherAnsweredAt,
         lastSavedBy: submission.lastSavedBy || "student",
+        guiReview: mapGuiReview(submission.guiReview),
         comments: mapSubmissionComments(submission.comments),
         createdAt: submission.createdAt,
         updatedAt: submission.updatedAt
@@ -410,6 +517,7 @@ exports.getLatestSubmissionForTeacher = async (req, res) => {
       .sort({ updatedAt: -1 })
       .populate("student", "name email year semester isActive role")
       .populate("comments.author", "name email")
+      .populate("problem", "title subject year semester createdBy description inputFormat outputFormat language")
       .lean();
 
     // Fallback: some deep links may pass a submission id instead of a student id.
@@ -421,6 +529,7 @@ exports.getLatestSubmissionForTeacher = async (req, res) => {
       .sort({ updatedAt: -1 })
       .populate("student", "name email year semester isActive role")
       .populate("comments.author", "name email")
+      .populate("problem", "title subject year semester createdBy description inputFormat outputFormat language")
       .lean();
     }
 
@@ -441,6 +550,7 @@ exports.getLatestSubmissionForTeacher = async (req, res) => {
         .sort({ updatedAt: -1 })
         .populate("student", "name email year semester isActive role")
         .populate("comments.author", "name email")
+        .populate("problem", "title subject year semester createdBy description inputFormat outputFormat language")
         .lean();
 
       if (!submission) {
@@ -474,9 +584,13 @@ exports.getLatestSubmissionForTeacher = async (req, res) => {
 
     res.json({
       problem: {
-        id: access.problem._id,
-        title: access.problem.title,
-        subject: access.problem.subject
+        id: submission.problem?._id || access.problem._id,
+        title: submission.problem?.title || access.problem.title,
+        subject: submission.problem?.subject || access.problem.subject,
+        description: submission.problem?.description || "",
+        inputFormat: submission.problem?.inputFormat || "",
+        outputFormat: submission.problem?.outputFormat || "",
+        language: submission.problem?.language
       },
       student: student || {
         _id: String(submissionStudentId || studentId || ""),
@@ -500,6 +614,7 @@ exports.getLatestSubmissionForTeacher = async (req, res) => {
         queryStatus: submission.queryStatus || "none",
         teacherAnsweredAt: submission.teacherAnsweredAt,
         lastSavedBy: submission.lastSavedBy || "student",
+        guiReview: mapGuiReview(submission.guiReview),
         comments: mapSubmissionComments(submission.comments),
         createdAt: submission.createdAt,
         updatedAt: submission.updatedAt
@@ -540,6 +655,7 @@ exports.getStudentSubmissionForProblem = async (req, res) => {
         queryStatus: submission.queryStatus || "none",
         teacherAnsweredAt: submission.teacherAnsweredAt,
         lastSavedBy: submission.lastSavedBy || "student",
+        guiReview: mapGuiReview(submission.guiReview),
         comments: mapSubmissionComments(submission.comments),
         createdAt: submission.createdAt,
         updatedAt: submission.updatedAt
@@ -598,7 +714,7 @@ exports.addTeacherComment = async (req, res) => {
 exports.updateSubmissionCodeByTeacher = async (req, res) => {
   try {
     const { submissionId } = req.params;
-    const { sourceCode, languageId, resolveQuery } = req.body;
+    const { sourceCode, languageId, resolveQuery, guiTeacherStatus, guiTeacherNote } = req.body;
 
     if (!String(sourceCode || "").trim()) {
       return res.status(400).json({ message: "sourceCode is required" });
@@ -624,6 +740,31 @@ exports.updateSubmissionCodeByTeacher = async (req, res) => {
       submission.queryStatus = "answered";
       submission.teacherAnsweredAt = new Date();
     }
+    const allowedGuiStatuses = ["not_required", "pending", "approved", "needs_changes"];
+    submission.guiReview = {
+      hasEvidence: Boolean(submission.guiReview?.hasEvidence),
+      screenshotDataUrl: submission.guiReview?.screenshotDataUrl || "",
+      htmlPreview: submission.guiReview?.htmlPreview || "",
+      notes: submission.guiReview?.notes || "",
+      teacherStatus: allowedGuiStatuses.includes(guiTeacherStatus)
+        ? guiTeacherStatus
+        : submission.guiReview?.teacherStatus || "not_required",
+      teacherNote: String(guiTeacherNote || "").trim(),
+      teacherReviewedAt:
+        guiTeacherStatus === "approved" || guiTeacherStatus === "needs_changes"
+          ? new Date()
+          : null
+    };
+    if (submission.guiReview.teacherStatus === "approved") {
+      submission.status = "passed";
+      submission.score = 100;
+    } else if (submission.guiReview.teacherStatus === "needs_changes") {
+      submission.status = "failed";
+      submission.score = 0;
+    } else if (submission.guiReview.teacherStatus === "pending" && submission.guiReview.hasEvidence) {
+      submission.status = "saved";
+      submission.score = 0;
+    }
     submission.lastSavedBy = "teacher";
 
     await submission.save();
@@ -640,6 +781,7 @@ exports.updateSubmissionCodeByTeacher = async (req, res) => {
         queryStatus: submission.queryStatus || "none",
         teacherAnsweredAt: submission.teacherAnsweredAt,
         lastSavedBy: submission.lastSavedBy || "student",
+        guiReview: mapGuiReview(submission.guiReview),
         updatedAt: submission.updatedAt
       }
     });
@@ -692,7 +834,7 @@ exports.getSubjectCompletionSummary = async (req, res) => {
 
     const submissions = await Submission.find({
       problem: { $in: problemIds }
-    }).select("student problem status score updatedAt");
+    }).select("student problem status score updatedAt guiReview");
 
     const byStudent = new Map();
     for (const sub of submissions) {
@@ -708,7 +850,7 @@ exports.getSubjectCompletionSummary = async (req, res) => {
 
       for (const p of problems) {
         const sub = taskMap.get(p._id.toString());
-        const passed = sub && sub.status === "passed";
+        const passed = Boolean(sub) && (sub.status === "passed" || sub.guiReview?.teacherStatus === "approved");
         if (passed) solvedCount += 1;
         tasks[p._id.toString()] = {
           status: passed ? "passed" : "pending",
@@ -767,6 +909,7 @@ exports.getStudentSubmissions = async (req, res) => {
         queryStatus: submission.queryStatus || "none",
         teacherAnsweredAt: submission.teacherAnsweredAt,
         lastSavedBy: submission.lastSavedBy || "student",
+        guiReview: mapGuiReview(submission.guiReview),
         updatedAt: submission.updatedAt,
         createdAt: submission.createdAt,
         problem: submission.problem,

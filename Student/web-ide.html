@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web IDE</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="ide-page web-ide-page">
+  <div class="container">
+    <header class="ide-header">
+      <div class="ide-header-bar">
+        <div class="ide-brand">
+          <h1><i class="fas fa-globe"></i> Web IDE</h1>
+          <p class="tagline"><i class="fas fa-window-maximize"></i> GUI-based HTML/CSS/JS tasks</p>
+        </div>
+        <a href="dashboard.html" class="btn-primary back-link">
+          <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+      </div>
+    </header>
+
+    <section class="problem-list-section" id="problem-list-section">
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title"><i class="fas fa-list"></i> Available Web Problems</h2>
+        </div>
+        <div id="problem-list" class="problem-list">Loading problems...</div>
+      </div>
+    </section>
+
+    <div class="problem-statement">
+      <div class="problem-header">
+        <h1 id="problem-title">Problem Title</h1>
+      </div>
+
+      <div class="problem-tags">
+        <span class="tag tag-difficulty" id="display-difficulty">Difficulty</span>
+        <span class="tag tag-subject" id="display-subject">Subject</span>
+        <span class="tag tag-year" id="display-year">Year</span>
+        <span class="tag tag-submission" id="display-semester">Semester</span>
+      </div>
+
+      <div class="problem-details">
+        <div class="detail-section">
+          <h3>DESCRIPTION</h3>
+          <p id="problem-description">Select a problem to view details.</p>
+        </div>
+        <div class="detail-section">
+          <h3>INPUT FORMAT</h3>
+          <p id="input-format">GUI task</p>
+        </div>
+        <div class="detail-section">
+          <h3>OUTPUT FORMAT</h3>
+          <p id="output-format">Rendered page / component</p>
+        </div>
+        <div class="detail-section">
+          <h3>CONSTRAINTS</h3>
+          <ul id="constraints-list"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-layout web-ide-layout">
+      <div class="panel editor-panel">
+        <div class="panel-header">
+          <h2 class="panel-title"><i class="fas fa-code"></i> HTML/CSS/JS Editor</h2>
+        </div>
+        <div class="editor-container">
+          <div id="web-editor"></div>
+        </div>
+
+        <div class="editor-footer">
+          <div class="editor-controls">
+            <button class="run-btn" id="refresh-preview-btn"><i class="fas fa-sync"></i> Refresh Preview</button>
+            <button class="clear-btn" id="save-web-btn"><i class="fas fa-floppy-disk"></i> Save Web Code</button>
+            <button class="submit-btn" id="send-review-btn"><i class="fas fa-paper-plane"></i> Send For Review</button>
+            <button class="clear-btn" id="reset-web-btn"><i class="fas fa-eraser"></i> Reset</button>
+          </div>
+
+          <div class="query-toggle-row">
+            <label class="query-toggle">
+              <input type="checkbox" id="web-query-toggle">
+              <span>This saved web code contains a query for the teacher</span>
+            </label>
+            <div class="discussion-status" id="web-comment-status">Load a web problem, write your question in code comments if needed, then save.</div>
+            <div class="query-answer-banner" id="web-answer-banner" style="display:none;"></div>
+          </div>
+
+          <div class="gui-proof-panel">
+            <div class="gui-proof-header">
+              <h3><i class="fas fa-clipboard-check"></i> Review Notes</h3>
+            </div>
+            <p class="gui-proof-help">Describe what the teacher should verify in the preview: layout, colors, interactions, chart labels, responsiveness, and required sections.</p>
+            <div class="gui-proof-block">
+              <label for="web-proof-notes">Teacher Review Checklist</label>
+              <textarea id="web-proof-notes" placeholder="Example: verify navbar alignment, button hover state, chart title, and mobile layout."></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="right-panel">
+        <div class="panel output-panel web-preview-panel">
+          <div class="panel-header">
+            <h2 class="panel-title"><i class="fas fa-display"></i> Live Preview</h2>
+          </div>
+          <iframe id="web-preview-frame" class="web-preview-frame" sandbox=""></iframe>
+          <div class="status" id="status">
+            <i class="fas fa-info-circle"></i>
+            <span id="web-status-text">Preview updates when you refresh or save.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="web-ide.js"></script>
+</body>
+</html>

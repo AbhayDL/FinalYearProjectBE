@@ -1352,6 +1352,29 @@ body.ide-page .test-cases-content {
   min-height: 220px;
 }
 
+.web-ide-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(380px, 0.95fr);
+}
+
+#web-editor {
+  height: 540px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: #0b1224;
+}
+
+.web-preview-panel {
+  min-height: 640px;
+}
+
+.web-preview-frame {
+  width: 100%;
+  min-height: 520px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
 .query-toggle-row {
   display: flex;
   flex-direction: column;
@@ -1412,6 +1435,43 @@ body.ide-page .test-cases-content {
   color: #a7f3d0;
   line-height: 1.5;
   font-size: 0.9rem;
+}
+
+.execution-text-block {
+  margin-bottom: 0.85rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.execution-text-block.error-block {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.24);
+  color: #fecdd3;
+}
+
+.execution-artifact-card {
+  margin-top: 0.85rem;
+  padding: 0.85rem;
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.execution-artifact-title {
+  margin-bottom: 0.65rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.execution-artifact-image {
+  width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #ffffff;
 }
 
 body.ide-page .footer {

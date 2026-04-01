@@ -213,7 +213,7 @@ function displayProblems(problems) {
         <span><i class="fas fa-calendar"></i> ${problem.year || 'N/A'}</span>
       </div>
       <div class="problem-actions">
-        <button class="btn-primary" onclick="solveProblem('${problem._id}')">Solve Problem</button>
+        <button class="btn-primary" onclick="solveProblem('${problem._id}', '${String(problem.language || "")}')">Solve Problem</button>
       </div>
     `;
     problemsList.appendChild(problemCard);
@@ -228,8 +228,9 @@ function renderTasksForSubject(allProblems, subject) {
 }
 
 
-function solveProblem(problemId) {
-  window.location.href = `submission-ide.html?problem_id=${problemId}`;
+function solveProblem(problemId, language = "") {
+  const targetPage = String(language) === "1001" ? "web-ide.html" : "submission-ide.html";
+  window.location.href = `${targetPage}?problem_id=${problemId}`;
 }
 
 async function fetchProblemsForYearSemester(year, semester) {

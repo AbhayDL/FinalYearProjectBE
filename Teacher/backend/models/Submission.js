@@ -41,6 +41,19 @@ const submissionSchema = new mongoose.Schema(
       enum: ["student", "teacher"],
       default: "student"
     },
+    guiReview: {
+      hasEvidence: { type: Boolean, default: false },
+      screenshotDataUrl: { type: String, default: "" },
+      htmlPreview: { type: String, default: "" },
+      notes: { type: String, default: "" },
+      teacherStatus: {
+        type: String,
+        enum: ["not_required", "pending", "approved", "needs_changes"],
+        default: "not_required"
+      },
+      teacherNote: { type: String, default: "" },
+      teacherReviewedAt: { type: Date, default: null }
+    },
     comments: { type: [submissionCommentSchema], default: [] }
   },
   { timestamps: true }

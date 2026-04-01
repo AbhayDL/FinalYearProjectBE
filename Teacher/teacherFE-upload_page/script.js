@@ -10,9 +10,17 @@ const EXECUTOR_FALLBACK_URLS = [
 ];
 const subjectSelect = document.getElementById('subject');
 const subjectHint = document.getElementById('subjectHint');
+const languageHint = document.getElementById('languageHint');
 const yearSelect = document.getElementById('year');
 const semesterSelect = document.getElementById('semester');
 const languageSelect = document.getElementById('language');
+const testCasesSection = document.getElementById('testCasesSection');
+const guiReviewToggle = document.getElementById('guiReviewRequired');
+const guiReviewHint = document.getElementById('guiReviewHint');
+const guiReviewFields = document.getElementById('guiReviewFields');
+const guiProblemTypeSelect = document.getElementById('guiProblemType');
+const allowedLibrariesInput = document.getElementById('allowedLibraries');
+const teacherChecklistInput = document.getElementById('teacherVerificationChecklist');
 let assignedSubjects = [];
 let assignedSubjectNames = new Set();
 
@@ -60,6 +68,57 @@ function setSelectValue(selectEl, value) {
   selectEl.value = value;
 }
 
+function isWebLanguage(languageId) {
+  return String(languageId || '') === '1001';
+}
+
+function isGuiReviewProblem() {
+  return Boolean(guiReviewToggle?.checked) || isWebLanguage(languageSelect?.value);
+}
+
+function updateLanguageMode() {
+  const selectedLanguage = languageSelect ? languageSelect.value : '';
+  const webMode = isWebLanguage(selectedLanguage);
+  const guiMode = isGuiReviewProblem();
+
+  if (testCasesSection) {
+    testCasesSection.style.display = guiMode ? 'none' : 'block';
+  }
+
+  if (guiReviewFields) {
+    guiReviewFields.style.display = guiMode ? 'block' : 'none';
+  }
+
+  if (guiReviewToggle) {
+    guiReviewToggle.checked = guiMode;
+    guiReviewToggle.disabled = webMode;
+  }
+
+  if (guiProblemTypeSelect) {
+    if (webMode) {
+      guiProblemTypeSelect.value = 'html';
+    } else if (!guiProblemTypeSelect.value) {
+      guiProblemTypeSelect.value = 'gui_other';
+    }
+  }
+
+  if (languageHint) {
+    languageHint.textContent = webMode
+      ? 'HTML/CSS/JS problems use the separate Web IDE with live preview and go directly to teacher review.'
+      : guiMode
+        ? 'GUI / graph problems skip console test cases and are submitted directly for teacher review.'
+        : '';
+    languageHint.classList.toggle('error', false);
+  }
+
+  if (guiReviewHint) {
+    guiReviewHint.textContent = guiMode
+      ? 'Students will submit this problem directly to teacher review. Add allowed libraries and a teacher checklist below.'
+      : '';
+    guiReviewHint.classList.toggle('error', false);
+  }
+}
+
 async function fetchWithExecutor(path) {
   let lastError;
   for (const base of EXECUTOR_FALLBACK_URLS) {
@@ -98,6 +157,11 @@ async function loadExecutorLanguages() {
           return `<option value="${escapeHtml(String(l.id))}">${escapeHtml(name)}</option>`;
         })
         .join('');
+    languageSelect.onchange = updateLanguageMode;
+    if (guiReviewToggle) {
+      guiReviewToggle.onchange = updateLanguageMode;
+    }
+    updateLanguageMode();
     return langs;
   } catch (err) {
     console.error("Failed to load languages:", err);
@@ -119,7 +183,8 @@ function normalizeLanguageName(lang) {
     63: "JavaScript",
     60: "Go",
     73: "Rust",
-    72: "Ruby"
+    72: "Ruby",
+    1001: "HTML/CSS/JS"
   };
   return map[lang?.id] || "Language";
 }
@@ -248,10 +313,17 @@ if (editId) {
         document.getElementById('inputFormat').value = data.inputFormat || '';
         document.getElementById('outputFormat').value = data.outputFormat || '';
         document.getElementById('constraints').value = data.constraints || '';
+        if (guiReviewToggle) guiReviewToggle.checked = Boolean(data.guiReviewRequired);
         document.getElementById('year').value = data.year || '';
         document.getElementById('semester').value = data.semester || '';
         document.getElementById('difficulty').value = data.difficulty || '';
-        languagesReady.then(() => setSelectValue(languageSelect, data.language || ''));
+        if (guiProblemTypeSelect) guiProblemTypeSelect.value = data.guiProblemType || 'html';
+        if (allowedLibrariesInput) allowedLibrariesInput.value = Array.isArray(data.allowedLibraries) ? data.allowedLibraries.join(', ') : '';
+        if (teacherChecklistInput) teacherChecklistInput.value = Array.isArray(data.teacherVerificationChecklist) ? data.teacherVerificationChecklist.join('\n') : '';
+        languagesReady.then(() => {
+          setSelectValue(languageSelect, data.language || '');
+          updateLanguageMode();
+        });
         document.getElementById('status').value = data.status || 'published';
 
         subjectsReady.then(() => applySubjectSelection(data.subject || ''));
@@ -380,10 +452,12 @@ function handleSubmit() {
     return;
   }
 
-  for (let i = 0; i < testCases.length; i++) {
-    if (!testCases[i].input.trim() || !testCases[i].output.trim()) {
-      alert(`Test Case #${i + 1} input and output are required`);
-      return;
+  if (!isGuiReviewProblem()) {
+    for (let i = 0; i < testCases.length; i++) {
+      if (!testCases[i].input.trim() || !testCases[i].output.trim()) {
+        alert(`Test Case #${i + 1} input and output are required`);
+        return;
+      }
     }
   }
 
@@ -393,13 +467,17 @@ function handleSubmit() {
     inputFormat: document.getElementById('inputFormat').value,
     outputFormat: document.getElementById('outputFormat').value,
     constraints: document.getElementById('constraints').value,
+    guiReviewRequired: isGuiReviewProblem(),
+    guiProblemType: isGuiReviewProblem() ? (guiProblemTypeSelect?.value || (isWebLanguage(language) ? 'html' : 'gui_other')) : 'standard',
+    allowedLibraries: String(allowedLibrariesInput?.value || ''),
+    teacherVerificationChecklist: String(teacherChecklistInput?.value || ''),
     year: document.getElementById('year').value,
     semester: document.getElementById('semester').value,
     subject,
     difficulty: document.getElementById('difficulty').value,
     language,
     status: document.getElementById('status').value,
-    testCases
+    testCases: isGuiReviewProblem() ? [] : testCases
   };
 
   // attach createdBy if available
