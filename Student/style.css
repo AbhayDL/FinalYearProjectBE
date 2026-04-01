@@ -1124,6 +1124,15 @@ button:disabled {
   max-width: 500px;
 }
 
+.profile-form + .profile-form {
+  margin-top: 1.25rem;
+}
+
+.profile-form h2 {
+  margin: 0 0 0.4rem 0;
+  color: #f8fafc;
+}
+
 .profile-status-banner {
   margin-bottom: 1rem;
   padding: 0.9rem 1rem;

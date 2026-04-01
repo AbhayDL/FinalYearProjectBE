@@ -109,6 +109,7 @@ let completionFilter = "all";
 let completionProblemTitle = "task_completion";
 let teacherStudents = [];
 let teacherReportSummary = null;
+let teacherSettingsStatusEl = null;
 
 function updateSidebarWelcome(teacher) {
   const title = document.getElementById("sidebar-welcome-title");
@@ -121,6 +122,34 @@ function updateSidebarWelcome(teacher) {
   if (subtitle) {
     subtitle.textContent = teacher?.email || "Plan, publish, and track classroom coding work.";
   }
+}
+
+function updateStoredTeacher(user) {
+  if (!user) return;
+  localStorage.setItem("teacherUser", JSON.stringify(user));
+}
+
+function setTeacherSettingsStatus(message, type = "") {
+  if (!teacherSettingsStatusEl) {
+    teacherSettingsStatusEl = document.getElementById("teacher-settings-status");
+  }
+  if (!teacherSettingsStatusEl) return;
+  teacherSettingsStatusEl.className = type
+    ? `settings-status-message ${type}`
+    : "settings-status-message";
+  teacherSettingsStatusEl.textContent = message || "";
+}
+
+function populateTeacherSettingsForm(teacher) {
+  if (!teacher) return;
+
+  const nameEl = document.getElementById("teacher-profile-name");
+  const emailEl = document.getElementById("teacher-profile-email");
+  const roleEl = document.getElementById("teacher-profile-role");
+
+  if (nameEl) nameEl.value = teacher.name || "";
+  if (emailEl) emailEl.value = teacher.email || "";
+  if (roleEl) roleEl.value = teacher.role || "teacher";
 }
 
 function setStudentsStatus(message, type = "") {
@@ -153,7 +182,9 @@ async function loadDashboardData() {
     if (profileRes.ok) {
       const profile = await profileRes.json();
       currentTeacher = profile;
+      updateStoredTeacher(profile);
       updateSidebarWelcome(currentTeacher);
+      populateTeacherSettingsForm(currentTeacher);
     }
 
     // Load analytics data
@@ -442,19 +473,90 @@ function generateDetailedReport() {
   loadReports();
 }
 
-// ============================
-// ⚙️ SETTINGS
-// ============================
-function saveSettings() {
-  const settings = {
-    emailNotifications: document.getElementById("email-notifications").checked,
-    studentActivity: document.getElementById("student-activity").checked,
-    darkMode: document.getElementById("dark-mode").checked,
-    compactView: document.getElementById("compact-view").checked
-  };
+function saveTeacherProfile() {
+  const name = document.getElementById("teacher-profile-name")?.value.trim() || "";
+  const email = document.getElementById("teacher-profile-email")?.value.trim() || "";
 
-  localStorage.setItem("teacherSettings", JSON.stringify(settings));
-  alert("Settings saved successfully!");
+  if (!name || !email) {
+    setTeacherSettingsStatus("Name and email are required.", "error");
+    return;
+  }
+
+  setTeacherSettingsStatus("Saving profile...");
+
+  fetch(`${EFFECTIVE_AUTH_BASE}/api/auth/me/profile`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("teacherToken")}`
+    },
+    body: JSON.stringify({ name, email })
+  })
+    .then(async (response) => {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to update profile");
+      }
+
+      if (data.user) {
+        currentTeacher = data.user;
+        updateStoredTeacher(currentTeacher);
+        updateSidebarWelcome(currentTeacher);
+        populateTeacherSettingsForm(currentTeacher);
+      }
+
+      setTeacherSettingsStatus(data.message || "Profile updated successfully.", "success");
+    })
+    .catch((error) => {
+      console.error("Teacher profile save failed:", error);
+      setTeacherSettingsStatus(error.message || "Failed to update profile.", "error");
+    });
+}
+
+function changeTeacherPassword() {
+  const currentPassword = document.getElementById("teacher-current-password")?.value || "";
+  const newPassword = document.getElementById("teacher-new-password")?.value || "";
+  const confirmPassword = document.getElementById("teacher-confirm-password")?.value || "";
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    setTeacherSettingsStatus("Please fill in all password fields.", "error");
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    setTeacherSettingsStatus("New password and confirm password do not match.", "error");
+    return;
+  }
+
+  setTeacherSettingsStatus("Updating password...");
+
+  fetch(`${EFFECTIVE_AUTH_BASE}/api/auth/me/password`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("teacherToken")}`
+    },
+    body: JSON.stringify({ currentPassword, newPassword })
+  })
+    .then(async (response) => {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to change password");
+      }
+
+      const currentEl = document.getElementById("teacher-current-password");
+      const newEl = document.getElementById("teacher-new-password");
+      const confirmEl = document.getElementById("teacher-confirm-password");
+      if (currentEl) currentEl.value = "";
+      if (newEl) newEl.value = "";
+      if (confirmEl) confirmEl.value = "";
+
+      setTeacherSettingsStatus(data.message || "Password updated successfully.", "success");
+    })
+    .catch((error) => {
+      console.error("Teacher password change failed:", error);
+      setTeacherSettingsStatus(error.message || "Failed to change password.", "error");
+    });
 }
 
 // ============================
@@ -464,17 +566,9 @@ document.addEventListener("DOMContentLoaded", function() {
   currentTeacher = ensureLoggedIn();
   if (currentTeacher) {
     updateSidebarWelcome(currentTeacher);
+    populateTeacherSettingsForm(currentTeacher);
+    teacherSettingsStatusEl = document.getElementById("teacher-settings-status");
     loadDashboardData();
-  }
-
-  // Load saved settings
-  const savedSettings = localStorage.getItem("teacherSettings");
-  if (savedSettings) {
-    const settings = JSON.parse(savedSettings);
-    document.getElementById("email-notifications").checked = settings.emailNotifications || false;
-    document.getElementById("student-activity").checked = settings.studentActivity || false;
-    document.getElementById("dark-mode").checked = settings.darkMode || false;
-    document.getElementById("compact-view").checked = settings.compactView || false;
   }
 
   const section = new URLSearchParams(window.location.search).get("section");

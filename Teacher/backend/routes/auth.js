@@ -1,10 +1,15 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const { protect } = require("../middleware/auth");
 const { toSafeUser } = require("../utils/userResponse");
 
 const router = express.Router();
+
+function sanitizeBoolean(value, fallback = false) {
+  return typeof value === "boolean" ? value : fallback;
+}
 
 router.post("/register", protect, async (req, res) => {
   const { name, email, password, semester, year, department, role } = req.body;
@@ -79,6 +84,121 @@ router.get("/me", protect, async (req, res) => {
   try {
     if (!req.user) return res.status(401).json({ message: "Not authorized" });
     res.json(req.user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// PUT /api/auth/me/profile - update teacher/student/admin basic profile details
+router.put("/me/profile", protect, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Not authorized" });
+
+    const { name, email } = req.body || {};
+    const updates = {};
+
+    if (typeof name === "string" && name.trim()) {
+      updates.name = name.trim();
+    }
+
+    if (typeof email === "string" && email.trim()) {
+      const normalizedEmail = email.trim().toLowerCase();
+      const existing = await User.findOne({
+        email: normalizedEmail,
+        _id: { $ne: req.user._id }
+      }).select("_id");
+
+      if (existing) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+
+      updates.email = normalizedEmail;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: "No profile changes provided" });
+    }
+
+    const updated = await User.findByIdAndUpdate(req.user._id, updates, {
+      new: true,
+      runValidators: true
+    }).select("-password");
+
+    res.json({
+      message: "Profile updated successfully",
+      user: toSafeUser(updated)
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// PUT /api/auth/me/preferences - update persisted teacher preferences
+router.put("/me/preferences", protect, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Not authorized" });
+    if (req.user.role !== "teacher") {
+      return res.status(403).json({ message: "Teacher access required" });
+    }
+
+    const preferences = req.body || {};
+    const updated = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        preferences: {
+          emailNotifications: sanitizeBoolean(preferences.emailNotifications, false),
+          studentActivity: sanitizeBoolean(preferences.studentActivity, false),
+          darkMode: sanitizeBoolean(preferences.darkMode, false),
+          compactView: sanitizeBoolean(preferences.compactView, false)
+        }
+      },
+      {
+        new: true,
+        runValidators: true
+      }
+    ).select("-password");
+
+    res.json({
+      message: "Preferences saved successfully",
+      preferences: updated.preferences || {},
+      user: toSafeUser(updated)
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// PUT /api/auth/me/password - update current user's password
+router.put("/me/password", protect, async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ message: "Not authorized" });
+
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Current password and new password are required" });
+    }
+
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({ message: "New password must be at least 6 characters long" });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.json({ message: "Password updated successfully" });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });

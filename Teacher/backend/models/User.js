@@ -11,6 +11,12 @@ const userSchema = new mongoose.Schema(
     department: { type: String, default: "" },
     semester: { type: String },
     year: { type: String },
+    preferences: {
+      emailNotifications: { type: Boolean, default: false },
+      studentActivity: { type: Boolean, default: false },
+      darkMode: { type: Boolean, default: false },
+      compactView: { type: Boolean, default: false }
+    },
     academicEditEnabled: { type: Boolean, default: false },
     academicEditUsed: { type: Boolean, default: false },
     academicEditEnabledAt: { type: Date, default: null },

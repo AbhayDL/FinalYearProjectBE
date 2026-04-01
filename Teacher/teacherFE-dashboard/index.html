@@ -246,43 +246,41 @@
         </div>
 
         <div class="settings-section">
+          <div id="teacher-settings-status" class="settings-status-message"></div>
+
           <div class="setting-group">
-            <h3>Notifications</h3>
-            <div class="setting-item">
-              <label for="email-notifications">Email Notifications</label>
-              <label class="switch">
-                <input type="checkbox" id="email-notifications">
-                <span class="slider"></span>
-              </label>
+            <h3>Profile</h3>
+            <div class="form-group">
+              <label for="teacher-profile-name">Name</label>
+              <input type="text" id="teacher-profile-name" placeholder="Teacher name">
             </div>
-            <div class="setting-item">
-              <label for="student-activity">Student Activity Alerts</label>
-              <label class="switch">
-                <input type="checkbox" id="student-activity">
-                <span class="slider"></span>
-              </label>
+            <div class="form-group">
+              <label for="teacher-profile-email">Email</label>
+              <input type="email" id="teacher-profile-email" placeholder="teacher@example.com">
             </div>
+            <div class="form-group">
+              <label for="teacher-profile-role">Role</label>
+              <input type="text" id="teacher-profile-role" readonly>
+            </div>
+            <button class="btn-primary" onclick="saveTeacherProfile()">Save Profile</button>
           </div>
 
           <div class="setting-group">
-            <h3>Display</h3>
-            <div class="setting-item">
-              <label for="dark-mode">Dark Mode</label>
-              <label class="switch">
-                <input type="checkbox" id="dark-mode" checked>
-                <span class="slider"></span>
-              </label>
+            <h3>Password</h3>
+            <div class="form-group">
+              <label for="teacher-current-password">Current Password</label>
+              <input type="password" id="teacher-current-password" placeholder="Enter current password">
             </div>
-            <div class="setting-item">
-              <label for="compact-view">Compact View</label>
-              <label class="switch">
-                <input type="checkbox" id="compact-view">
-                <span class="slider"></span>
-              </label>
+            <div class="form-group">
+              <label for="teacher-new-password">New Password</label>
+              <input type="password" id="teacher-new-password" placeholder="Enter new password">
             </div>
+            <div class="form-group">
+              <label for="teacher-confirm-password">Confirm New Password</label>
+              <input type="password" id="teacher-confirm-password" placeholder="Re-enter new password">
+            </div>
+            <button class="btn-primary" onclick="changeTeacherPassword()">Change Password</button>
           </div>
-
-          <button class="btn-primary" onclick="saveSettings()">Save Settings</button>
         </div>
       </div>
     </div>

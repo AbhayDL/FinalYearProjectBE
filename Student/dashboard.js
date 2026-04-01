@@ -55,6 +55,7 @@ let editProfileBtn = null;
 let saveProfileBtn = null;
 let cancelProfileBtn = null;
 let profileAcademicStatusEl = null;
+let studentPasswordStatusEl = null;
 
 function escapeHtml(text) {
   return String(text)
@@ -98,6 +99,20 @@ function refreshAcademicEditStatus(user) {
   profileAcademicStatusEl.classList.add("locked");
   profileAcademicStatusEl.textContent = "Year/Semester editing is locked. Admin can enable it for one-time use when your academic term changes.";
   if (editProfileBtn) editProfileBtn.disabled = true;
+}
+
+function setStudentPasswordStatus(message, type = "") {
+  if (!studentPasswordStatusEl) {
+    studentPasswordStatusEl = document.getElementById("student-password-status");
+  }
+  if (!studentPasswordStatusEl) return;
+
+  studentPasswordStatusEl.style.display = message ? "block" : "none";
+  studentPasswordStatusEl.className = "profile-status-banner";
+  if (type) {
+    studentPasswordStatusEl.classList.add(type);
+  }
+  studentPasswordStatusEl.textContent = message || "";
 }
 
 async function loadDashboardData() {
@@ -586,6 +601,55 @@ async function saveProfile() {
   }
 }
 
+async function changeStudentPassword() {
+  const currentPassword = document.getElementById("student-current-password")?.value || "";
+  const newPassword = document.getElementById("student-new-password")?.value || "";
+  const confirmPassword = document.getElementById("student-confirm-password")?.value || "";
+  const token = localStorage.getItem("studentToken");
+
+  if (!token) return logout();
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    setStudentPasswordStatus("Please fill in all password fields.", "locked");
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    setStudentPasswordStatus("New password and confirm password do not match.", "locked");
+    return;
+  }
+
+  setStudentPasswordStatus("Updating password...", "used");
+
+  try {
+    const res = await fetch(`${AUTH_BASE_URL}/api/auth/me/password`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.message || "Failed to update password");
+    }
+
+    const currentEl = document.getElementById("student-current-password");
+    const newEl = document.getElementById("student-new-password");
+    const confirmEl = document.getElementById("student-confirm-password");
+    if (currentEl) currentEl.value = "";
+    if (newEl) newEl.value = "";
+    if (confirmEl) confirmEl.value = "";
+
+    setStudentPasswordStatus(data.message || "Password updated successfully.", "enabled");
+  } catch (error) {
+    console.error("Student password update failed:", error);
+    setStudentPasswordStatus(error.message || "Failed to update password.", "locked");
+  }
+}
+
 // ============================
 // 🎛️ NAVIGATION
 // ============================
@@ -640,6 +704,7 @@ document.addEventListener("DOMContentLoaded", function() {
     saveProfileBtn = document.getElementById("save-profile-btn");
     cancelProfileBtn = document.getElementById("cancel-profile-btn");
     profileAcademicStatusEl = document.getElementById("profile-academic-status");
+    studentPasswordStatusEl = document.getElementById("student-password-status");
 
     setProfileEditMode(false);
     refreshAcademicEditStatus(currentUser);

@@ -146,6 +146,7 @@
 
         <div class="profile-form">
           <div id="profile-academic-status" class="profile-status-banner"></div>
+          <div id="student-password-status" class="profile-status-banner" style="display:none;"></div>
           <div class="form-group">
             <label for="profile-name">Name</label>
             <input type="text" id="profile-name" readonly>
@@ -186,6 +187,26 @@
             <button class="btn-primary" id="edit-profile-btn" onclick="editProfile()">Edit Profile</button>
             <button class="btn-primary" id="save-profile-btn" onclick="saveProfile()" style="display:none;">Save Profile</button>
             <button class="btn-secondary" id="cancel-profile-btn" onclick="cancelProfileEdit()" style="display:none;">Cancel</button>
+          </div>
+        </div>
+
+        <div class="profile-form">
+          <h2>Change Password</h2>
+          <p class="submission-summary">Update your login password for future sign-ins.</p>
+          <div class="form-group">
+            <label for="student-current-password">Current Password</label>
+            <input type="password" id="student-current-password" placeholder="Enter current password">
+          </div>
+          <div class="form-group">
+            <label for="student-new-password">New Password</label>
+            <input type="password" id="student-new-password" placeholder="Enter new password">
+          </div>
+          <div class="form-group">
+            <label for="student-confirm-password">Confirm New Password</label>
+            <input type="password" id="student-confirm-password" placeholder="Re-enter new password">
+          </div>
+          <div class="profile-actions">
+            <button class="btn-primary" onclick="changeStudentPassword()">Change Password</button>
           </div>
         </div>
       </section>
