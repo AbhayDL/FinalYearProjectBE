@@ -13,7 +13,16 @@ const LANGUAGE_CONFIG = {
   62: {
     extension: ".java",
     sourceFileName: "Main.java",
-    command: ["openjdk:17-slim", "/bin/sh", "-lc", () => "javac Main.java && java Main"],
+    images: ["codeassplat-java-academic:latest", "eclipse-temurin:17-jdk-jammy"],
+    command: [
+      ({ image }) => image,
+      "/bin/sh",
+      "-lc",
+      ({ image }) =>
+        image === "codeassplat-java-academic:latest"
+          ? "javac -cp '/opt/java-libs/*:.' Main.java && java -cp '/opt/java-libs/*:.' Main"
+          : "javac Main.java && java Main"
+    ],
   },
   63: {
     extension: ".js",
