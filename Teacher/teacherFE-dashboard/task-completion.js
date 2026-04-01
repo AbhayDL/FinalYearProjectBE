@@ -359,6 +359,9 @@ function getTeacherSummaryStatus(student) {
     return { className: "answered", label: "GUI Review" };
   }
   if (student.queryStatus === "answered") return { className: "answered", label: "Answered" };
+  if (student.submissionStatus === "pending" && student.hasSubmitted) {
+    return { className: "pending", label: "Pending Review" };
+  }
   if (student.hasSubmitted) return { className: "failed", label: "Attempted" };
   return { className: "pending", label: "Not yet" };
 }
@@ -555,7 +558,7 @@ function renderGuiProofSection(problem = {}, submission = {}) {
   const htmlBlock = guiReview.htmlPreview
     ? `<div class="gui-proof-teacher-card">
         <span>HTML Preview</span>
-        <iframe class="gui-proof-frame" sandbox="" srcdoc="${escapeAttribute(guiReview.htmlPreview)}"></iframe>
+        <iframe class="gui-proof-frame" sandbox="allow-scripts allow-modals" srcdoc="${escapeAttribute(guiReview.htmlPreview)}"></iframe>
       </div>`
     : "";
 
@@ -666,10 +669,14 @@ async function viewSubmissionCode(studentId, submissionId = "") {
             <span>Email</span>
             <strong>${escapeHtml(student.email || "")}</strong>
           </div>
-          <div class="submission-meta-tile">
-            <span>Status</span>
-            <strong>${escapeHtml(submission.status || "unknown")}</strong>
-          </div>
+        <div class="submission-meta-tile">
+          <span>Status</span>
+          <strong>${escapeHtml(submission.status || "unknown")}</strong>
+        </div>
+        <div class="submission-meta-tile">
+          <span>Raw Test Status</span>
+          <strong>${escapeHtml(submission.rawStatus || submission.status || "unknown")}</strong>
+        </div>
           <div class="submission-meta-tile">
             <span>Score</span>
             <strong>${submission.score || 0}</strong>
@@ -699,6 +706,18 @@ async function viewSubmissionCode(studentId, submissionId = "") {
           <h4>Teacher Reviewed Code</h4>
           <textarea id="teacher-code-editor" class="submission-code-editor" spellcheck="false">${escapeHtml(submission.teacherReviewedCode || submission.sourceCode || "// No code found")}</textarea>
         </div>
+        ${!isGuiCapableSubmission(data.problem || {}, submission) ? `
+          <div class="gui-review-controls">
+            <label>
+              <span>Teacher Review Decision</span>
+              <select id="teacher-override-status">
+                <option value="none" ${(submission.teacherOverrideStatus || "none") === "none" ? "selected" : ""}>Use Auto Test Result</option>
+                <option value="approved" ${submission.teacherOverrideStatus === "approved" ? "selected" : ""}>Mark Approved</option>
+                <option value="pending" ${submission.teacherOverrideStatus === "pending" ? "selected" : ""}>Mark Pending Review</option>
+              </select>
+            </label>
+          </div>
+        ` : ""}
         ${renderGuiProofSection(data.problem || {}, submission)}
         <div class="submission-editor-actions">
           <label class="resolve-query-toggle">
@@ -726,7 +745,7 @@ async function runTeacherGuiOutput() {
 
   if (languageId === 1001) {
     runtimeOutput.innerHTML = `
-      <iframe class="gui-proof-frame" sandbox="allow-scripts" srcdoc="${escapeAttribute(sourceCode)}"></iframe>
+      <iframe class="gui-proof-frame" sandbox="allow-scripts allow-modals" srcdoc="${escapeAttribute(sourceCode)}"></iframe>
     `;
     return;
   }
@@ -768,6 +787,7 @@ async function saveTeacherEditedCode(submissionId, languageId) {
   const resolveQuery = document.getElementById("resolve-query-toggle");
   const guiTeacherStatus = document.getElementById("gui-teacher-status");
   const guiTeacherNote = document.getElementById("gui-teacher-note");
+  const teacherOverrideStatus = document.getElementById("teacher-override-status");
   const sourceCode = String(input?.value || "");
 
   if (!token || !submissionId) return;
@@ -789,6 +809,7 @@ async function saveTeacherEditedCode(submissionId, languageId) {
           sourceCode,
           languageId,
           resolveQuery: Boolean(resolveQuery?.checked),
+          teacherOverrideStatus: teacherOverrideStatus?.value || "none",
           guiTeacherStatus: guiTeacherStatus?.value || "not_required",
           guiTeacherNote: guiTeacherNote?.value || ""
         })

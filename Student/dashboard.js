@@ -164,8 +164,8 @@ function renderRecentStudentActivity(submissions) {
 
   activityList.innerHTML = submissions.slice(0, 5).map((submission) => `
     <div class="activity-item">
-      <i class="fas ${submission.status === "passed" ? "fa-check-circle" : (submission.queryStatus === "answered" ? "fa-comment-dots" : "fa-hourglass-half")}"></i>
-      <span>${submission.problem?.title || "Problem"} - ${formatSubmissionStatus(submission.status, submission.queryStatus)}</span>
+      <i class="fas ${submission.teacherOverrideStatus === "pending" ? "fa-rotate-left" : (submission.status === "passed" ? "fa-check-circle" : (submission.queryStatus === "answered" ? "fa-comment-dots" : "fa-hourglass-half"))}"></i>
+      <span>${submission.problem?.title || "Problem"} - ${formatSubmissionStatus(submission.status, submission.queryStatus, submission.teacherOverrideStatus)}</span>
     </div>
   `).join("");
 }
@@ -452,6 +452,7 @@ async function loadSubmissions() {
           title: problem.title || "Problem",
           status,
           queryStatus: submission?.queryStatus || "none",
+          teacherOverrideStatus: submission?.teacherOverrideStatus || "none",
           updatedAt: submission?.updatedAt || null,
           score: submission?.score || 0
         };
@@ -488,7 +489,7 @@ async function loadSubmissions() {
                 <span class="submission-meta">${task.updatedAt ? `Updated: ${new Date(task.updatedAt).toLocaleString()}` : "Not submitted yet"}</span>
               </div>
               <div class="subject-task-status">
-                <span class="status ${mapSubmissionStatus(task.status, task.queryStatus)}">${formatSubmissionStatus(task.status, task.queryStatus)}</span>
+                <span class="status ${mapSubmissionStatus(task.status, task.queryStatus, task.teacherOverrideStatus)}">${formatSubmissionStatus(task.status, task.queryStatus, task.teacherOverrideStatus)}</span>
                 <span class="task-score">Score: ${task.score}</span>
               </div>
             </div>
@@ -502,7 +503,8 @@ async function loadSubmissions() {
   }
 }
 
-function mapSubmissionStatus(status, queryStatus = "none") {
+function mapSubmissionStatus(status, queryStatus = "none", teacherOverrideStatus = "none") {
+  if (teacherOverrideStatus === "pending") return "info";
   if (status === "passed") return "accepted";
   if (queryStatus === "open" || queryStatus === "revised_by_student") return "query";
   if (queryStatus === "answered") return "info";
@@ -510,8 +512,9 @@ function mapSubmissionStatus(status, queryStatus = "none") {
   return "pending";
 }
 
-function formatSubmissionStatus(status, queryStatus = "none") {
+function formatSubmissionStatus(status, queryStatus = "none", teacherOverrideStatus = "none") {
   if (status === "passed") return "Completed";
+  if (teacherOverrideStatus === "pending") return "Unapproved by Teacher";
   if (queryStatus === "open") return "Query Sent";
   if (queryStatus === "revised_by_student") return "Query Revised";
   if (queryStatus === "answered") return "Answered";

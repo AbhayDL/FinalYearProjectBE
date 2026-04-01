@@ -121,6 +121,26 @@ function setQueryAnsweredBanner(message) {
   }
 }
 
+function getStudentReviewBanner(submission = {}) {
+  if (submission.teacherOverrideStatus === "pending") {
+    return "Teacher moved this submission back to pending review. Please check the code/comments, update your solution, and resubmit.";
+  }
+
+  if (submission.guiReview?.teacherStatus === "approved") {
+    return "Teacher approved your GUI output.";
+  }
+
+  if (submission.guiReview?.teacherStatus === "needs_changes") {
+    return `Teacher requested a resubmission${submission.guiReview.teacherNote ? `: ${submission.guiReview.teacherNote}` : "."}`;
+  }
+
+  if (!submission.queryPending && submission.teacherAnsweredAt) {
+    return `Your query was answered on ${new Date(submission.teacherAnsweredAt).toLocaleString()}. Check the code comments below.`;
+  }
+
+  return "";
+}
+
 function escapeHtml(text) {
   return String(text || "")
     .replace(/&/g, "&amp;")
@@ -318,21 +338,15 @@ async function loadSavedSubmission() {
     setCommentStatus(
       submission.queryStatus === "revised_by_student"
         ? "You revised the code after a teacher answer. Save again with query if you need another review."
+        : submission.teacherOverrideStatus === "pending"
+          ? "Teacher moved this submission back to pending review. Please update your code and submit again."
         : submission.queryStatus === "open"
           ? "This saved code is marked as having a query. Teacher can answer inside the code comments."
           : submission.queryStatus === "answered"
             ? "Teacher answered in the reviewed code comments."
             : "Saved code loaded successfully."
     );
-    setQueryAnsweredBanner(
-      submission.guiReview?.teacherStatus === "approved"
-        ? "Teacher approved your GUI output."
-        : submission.guiReview?.teacherStatus === "needs_changes"
-          ? `Teacher requested a resubmission${submission.guiReview.teacherNote ? `: ${submission.guiReview.teacherNote}` : "."}`
-          : !submission.queryPending && submission.teacherAnsweredAt
-            ? `Your query was answered on ${new Date(submission.teacherAnsweredAt).toLocaleString()}. Check the code comments below.`
-            : ""
-    );
+    setQueryAnsweredBanner(getStudentReviewBanner(submission));
 
     const localDraft = loadLocalDraft(currentProblem._id);
     if (

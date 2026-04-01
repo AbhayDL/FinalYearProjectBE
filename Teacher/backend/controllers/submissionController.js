@@ -92,6 +92,16 @@ function isGuiReviewProblem(problem = {}) {
   return Boolean(problem?.guiReviewRequired) || String(problem?.language || "") === "1001";
 }
 
+function getEffectiveSubmissionStatus(submission = {}) {
+  if (submission.guiReview?.teacherStatus === "approved") return "passed";
+  if (submission.guiReview?.teacherStatus === "needs_changes") return "failed";
+  if (submission.teacherOverrideStatus === "approved") return "passed";
+  if (submission.teacherOverrideStatus === "pending") return "pending";
+  if (submission.status === "passed") return "passed";
+  if (submission.status === "failed") return "failed";
+  return "pending";
+}
+
 async function verifyTeacherProblemAccess(problemId, teacherUser) {
   const problem = await Problem.findById(problemId).select("title subject subjectId department year semester createdBy");
   if (!problem) {
@@ -162,7 +172,7 @@ exports.saveSolution = async (req, res) => {
     const existingSubmission = await Submission.findOne({
       student: req.user._id,
       problem: problem._id
-    }).select("status passedCount totalCount score teacherAnsweredAt queryStatus teacherReviewedCode guiReview");
+    }).select("status passedCount totalCount score teacherAnsweredAt queryStatus teacherReviewedCode guiReview teacherOverrideStatus");
 
     const nextQueryStatus = getNextQueryStatus(existingSubmission, Boolean(hasQuery));
     const nextGuiReview = normalizeGuiReviewPayload(guiEvidence, existingSubmission?.guiReview || {});
@@ -181,6 +191,7 @@ exports.saveSolution = async (req, res) => {
         queryStatus: nextQueryStatus,
         teacherAnsweredAt: hasQuery ? null : existingSubmission?.teacherAnsweredAt || null,
         lastSavedBy: "student",
+        teacherOverrideStatus: existingSubmission?.teacherOverrideStatus === "approved" ? "none" : existingSubmission?.teacherOverrideStatus || "none",
         guiReview: nextGuiReview
       }
     };
@@ -257,6 +268,7 @@ exports.submitSolution = async (req, res) => {
             queryStatus: "none",
             teacherAnsweredAt: null,
             lastSavedBy: "student",
+            teacherOverrideStatus: "none",
             guiReview: {
               ...nextGuiReview,
               teacherStatus: "pending",
@@ -322,6 +334,7 @@ exports.submitSolution = async (req, res) => {
           queryStatus: "none",
           teacherAnsweredAt: null,
           lastSavedBy: "student",
+          teacherOverrideStatus: "none",
           guiReview: {
             hasEvidence: false,
             screenshotDataUrl: "",
@@ -377,7 +390,7 @@ exports.getProblemSubmissionSummary = async (req, res) => {
 
     const submissions = await Submission.find({ problem: problemId })
       .sort({ updatedAt: -1 })
-      .select("student status score queryPending queryStatus teacherAnsweredAt createdAt updatedAt guiReview");
+      .select("student status score queryPending queryStatus teacherAnsweredAt createdAt updatedAt guiReview teacherOverrideStatus");
 
     const latestByStudent = new Map();
     for (const sub of submissions) {
@@ -387,6 +400,7 @@ exports.getProblemSubmissionSummary = async (req, res) => {
 
     const summary = students.map(student => {
       const latest = latestByStudent.get(student._id.toString());
+      const effectiveStatus = latest ? getEffectiveSubmissionStatus(latest) : "pending";
       return {
         id: student._id,
         submissionId: latest ? latest._id : null,
@@ -399,8 +413,9 @@ exports.getProblemSubmissionSummary = async (req, res) => {
         hasGuiEvidence: latest ? Boolean(latest.guiReview?.hasEvidence) : false,
         guiReviewStatus: latest ? latest.guiReview?.teacherStatus || "not_required" : "not_required",
         teacherAnsweredAt: latest ? latest.teacherAnsweredAt : null,
-        hasPassed: latest ? latest.status === "passed" : false,
-        submissionStatus: latest ? latest.status : "pending",
+        hasPassed: effectiveStatus === "passed",
+        submissionStatus: effectiveStatus,
+        teacherOverrideStatus: latest ? latest.teacherOverrideStatus || "none" : "none",
         score: latest ? latest.score : 0,
         submittedAt: latest ? latest.updatedAt || latest.createdAt : null
       };
@@ -488,7 +503,8 @@ exports.getSubmissionByIdForTeacher = async (req, res) => {
         studentSourceCode: submission.studentSourceCode || submission.sourceCode,
         teacherReviewedCode: submission.teacherReviewedCode || "",
         languageId: submission.languageId,
-        status: submission.status,
+        status: getEffectiveSubmissionStatus(submission),
+        rawStatus: submission.status,
         score: submission.score,
         passedCount: submission.passedCount,
         totalCount: submission.totalCount,
@@ -496,6 +512,7 @@ exports.getSubmissionByIdForTeacher = async (req, res) => {
         queryStatus: submission.queryStatus || "none",
         teacherAnsweredAt: submission.teacherAnsweredAt,
         lastSavedBy: submission.lastSavedBy || "student",
+        teacherOverrideStatus: submission.teacherOverrideStatus || "none",
         guiReview: mapGuiReview(submission.guiReview),
         comments: mapSubmissionComments(submission.comments),
         createdAt: submission.createdAt,
@@ -617,7 +634,8 @@ exports.getLatestSubmissionForTeacher = async (req, res) => {
         studentSourceCode: submission.studentSourceCode || submission.sourceCode,
         teacherReviewedCode: submission.teacherReviewedCode || "",
         languageId: submission.languageId,
-        status: submission.status,
+        status: getEffectiveSubmissionStatus(submission),
+        rawStatus: submission.status,
         score: submission.score,
         passedCount: submission.passedCount,
         totalCount: submission.totalCount,
@@ -625,6 +643,7 @@ exports.getLatestSubmissionForTeacher = async (req, res) => {
         queryStatus: submission.queryStatus || "none",
         teacherAnsweredAt: submission.teacherAnsweredAt,
         lastSavedBy: submission.lastSavedBy || "student",
+        teacherOverrideStatus: submission.teacherOverrideStatus || "none",
         guiReview: mapGuiReview(submission.guiReview),
         comments: mapSubmissionComments(submission.comments),
         createdAt: submission.createdAt,
@@ -658,7 +677,8 @@ exports.getStudentSubmissionForProblem = async (req, res) => {
         studentSourceCode: submission.studentSourceCode || submission.sourceCode,
         teacherReviewedCode: submission.teacherReviewedCode || "",
         languageId: submission.languageId,
-        status: submission.status,
+        status: getEffectiveSubmissionStatus(submission),
+        rawStatus: submission.status,
         score: submission.score,
         passedCount: submission.passedCount,
         totalCount: submission.totalCount,
@@ -666,6 +686,7 @@ exports.getStudentSubmissionForProblem = async (req, res) => {
         queryStatus: submission.queryStatus || "none",
         teacherAnsweredAt: submission.teacherAnsweredAt,
         lastSavedBy: submission.lastSavedBy || "student",
+        teacherOverrideStatus: submission.teacherOverrideStatus || "none",
         guiReview: mapGuiReview(submission.guiReview),
         comments: mapSubmissionComments(submission.comments),
         createdAt: submission.createdAt,
@@ -725,7 +746,7 @@ exports.addTeacherComment = async (req, res) => {
 exports.updateSubmissionCodeByTeacher = async (req, res) => {
   try {
     const { submissionId } = req.params;
-    const { sourceCode, languageId, resolveQuery, guiTeacherStatus, guiTeacherNote } = req.body;
+    const { sourceCode, languageId, resolveQuery, guiTeacherStatus, guiTeacherNote, teacherOverrideStatus } = req.body;
 
     if (!String(sourceCode || "").trim()) {
       return res.status(400).json({ message: "sourceCode is required" });
@@ -750,6 +771,10 @@ exports.updateSubmissionCodeByTeacher = async (req, res) => {
       submission.queryPending = false;
       submission.queryStatus = "answered";
       submission.teacherAnsweredAt = new Date();
+    }
+    const allowedOverrideStatuses = ["none", "pending", "approved"];
+    if (allowedOverrideStatuses.includes(String(teacherOverrideStatus || ""))) {
+      submission.teacherOverrideStatus = teacherOverrideStatus;
     }
     const allowedGuiStatuses = ["not_required", "pending", "approved", "needs_changes"];
     submission.guiReview = {
@@ -776,6 +801,12 @@ exports.updateSubmissionCodeByTeacher = async (req, res) => {
       submission.status = "saved";
       submission.score = 0;
     }
+    if (submission.teacherOverrideStatus === "pending") {
+      submission.status = submission.status === "failed" ? "failed" : "saved";
+    } else if (submission.teacherOverrideStatus === "approved") {
+      submission.status = "passed";
+      if (!submission.score) submission.score = 100;
+    }
     submission.lastSavedBy = "teacher";
 
     await submission.save();
@@ -792,6 +823,7 @@ exports.updateSubmissionCodeByTeacher = async (req, res) => {
         queryStatus: submission.queryStatus || "none",
         teacherAnsweredAt: submission.teacherAnsweredAt,
         lastSavedBy: submission.lastSavedBy || "student",
+        teacherOverrideStatus: submission.teacherOverrideStatus || "none",
         guiReview: mapGuiReview(submission.guiReview),
         updatedAt: submission.updatedAt
       }
@@ -856,7 +888,7 @@ exports.getSubjectCompletionSummary = async (req, res) => {
 
     const submissions = await Submission.find({
       problem: { $in: problemIds }
-    }).select("student problem status score updatedAt guiReview");
+    }).select("student problem status score updatedAt guiReview teacherOverrideStatus");
 
     const byStudent = new Map();
     for (const sub of submissions) {
@@ -872,7 +904,7 @@ exports.getSubjectCompletionSummary = async (req, res) => {
 
       for (const p of problems) {
         const sub = taskMap.get(p._id.toString());
-        const passed = Boolean(sub) && (sub.status === "passed" || sub.guiReview?.teacherStatus === "approved");
+        const passed = Boolean(sub) && getEffectiveSubmissionStatus(sub) === "passed";
         if (passed) solvedCount += 1;
         tasks[p._id.toString()] = {
           status: passed ? "passed" : "pending",
@@ -915,8 +947,8 @@ exports.getStudentSubmissions = async (req, res) => {
       .populate("problem", "title subject difficulty year semester")
       .sort({ updatedAt: -1 });
 
-    const solvedCount = submissions.filter((submission) => submission.status === "passed").length;
-    const pendingCount = submissions.filter((submission) => submission.status !== "passed").length;
+    const solvedCount = submissions.filter((submission) => getEffectiveSubmissionStatus(submission) === "passed").length;
+    const pendingCount = submissions.filter((submission) => getEffectiveSubmissionStatus(submission) !== "passed").length;
     const pendingQueryCount = submissions.filter((submission) => submission.queryStatus === "open" || submission.queryStatus === "revised_by_student").length;
     const answeredQueryCount = submissions.filter((submission) => submission.queryStatus === "answered").length;
 
@@ -927,7 +959,8 @@ exports.getStudentSubmissions = async (req, res) => {
       answeredQueryCount,
       submissions: submissions.map((submission) => ({
         id: submission._id,
-        status: submission.status,
+        status: getEffectiveSubmissionStatus(submission),
+        rawStatus: submission.status,
         score: submission.score,
         passedCount: submission.passedCount,
         totalCount: submission.totalCount,
@@ -935,6 +968,7 @@ exports.getStudentSubmissions = async (req, res) => {
         queryStatus: submission.queryStatus || "none",
         teacherAnsweredAt: submission.teacherAnsweredAt,
         lastSavedBy: submission.lastSavedBy || "student",
+        teacherOverrideStatus: submission.teacherOverrideStatus || "none",
         guiReview: mapGuiReview(submission.guiReview),
         updatedAt: submission.updatedAt,
         createdAt: submission.createdAt,

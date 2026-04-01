@@ -41,6 +41,11 @@ const submissionSchema = new mongoose.Schema(
       enum: ["student", "teacher"],
       default: "student"
     },
+    teacherOverrideStatus: {
+      type: String,
+      enum: ["none", "pending", "approved"],
+      default: "none"
+    },
     guiReview: {
       hasEvidence: { type: Boolean, default: false },
       screenshotDataUrl: { type: String, default: "" },
