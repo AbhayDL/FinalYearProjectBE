@@ -10,62 +10,88 @@
   <div class="background-pattern"></div>
 
   <div class="login-container">
-    <div class="login-card">
-      <div class="login-header">
-        <h1 id="loginTitle">Student Login</h1>
-        <p id="loginSubtitle">Login to continue coding.</p>
+    <section class="entry-shell">
+      <div class="entry-hero">
+        <div class="hero-badge">Code Assessment Platform Access</div>
+        <h1>Login to Code Assessment Portal</h1>
+        <p class="hero-copy">
+          Sign in as a teacher, student, or admin and move directly into your workspace for problem solving, review, and platform management.
+        </p>
+
+        <div class="hero-role-grid">
+          <article class="hero-role-card">
+            <span class="hero-role-label">Teacher</span>
+            <p>Manage problems, review submissions, and monitor student progress.</p>
+          </article>
+          <article class="hero-role-card">
+            <span class="hero-role-label">Student</span>
+            <p>Open tasks, write code, practice in the IDE, and track your progress.</p>
+          </article>
+          <article class="hero-role-card">
+            <span class="hero-role-label">Admin</span>
+            <p>Control users, academic access, analytics, and platform configuration.</p>
+          </article>
+        </div>
       </div>
 
-      <div class="role-switch" role="tablist" aria-label="Login role">
-        <button type="button" class="role-tab active" data-role="student" onclick="setRole('student')">Student</button>
-        <button type="button" class="role-tab" data-role="teacher" onclick="setRole('teacher')">Teacher</button>
-      </div>
-
-      <form id="loginForm" onsubmit="handleLogin(event)">
-        <div class="form-group">
-          <label for="email">Email Address</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            class="input"
-            placeholder="Enter your email"
-            required
-          />
-          <span class="error-message" id="emailError"></span>
+      <div class="login-card">
+        <div class="login-badge">Secure Sign In</div>
+        <div class="login-header">
+          <h1 id="loginTitle">Student Login</h1>
+          <p id="loginSubtitle">Login to continue coding.</p>
         </div>
 
-        <div class="form-group">
-          <label for="password">Password</label>
-          <div class="password-input-wrapper">
+        <div class="role-switch" role="tablist" aria-label="Login role">
+          <button type="button" class="role-tab active" data-role="student" onclick="setRole('student')">Student</button>
+          <button type="button" class="role-tab" data-role="teacher" onclick="setRole('teacher')">Teacher</button>
+        </div>
+
+        <form id="loginForm" onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label for="email">Email Address</label>
             <input
-              type="password"
-              id="password"
-              name="password"
-              class="input password-input"
-              placeholder="Enter your password"
+              type="email"
+              id="email"
+              name="email"
+              class="input"
+              placeholder="Enter your email"
               required
             />
-            <button type="button" class="toggle-password" onclick="togglePassword()">Show</button>
+            <span class="error-message" id="emailError"></span>
           </div>
-          <span class="error-message" id="passwordError"></span>
+
+          <div class="form-group">
+            <label for="password">Password</label>
+            <div class="password-input-wrapper">
+              <input
+                type="password"
+                id="password"
+                name="password"
+                class="input password-input"
+                placeholder="Enter your password"
+                required
+              />
+              <button type="button" class="toggle-password" onclick="togglePassword()">Show</button>
+            </div>
+            <span class="error-message" id="passwordError"></span>
+          </div>
+
+          <div class="form-options">
+            <label class="remember-me">
+              <input type="checkbox" id="rememberMe" name="rememberMe" />
+              <span>Remember me</span>
+            </label>
+            <a href="../Admin/login.html" class="admin-login-link">Admin Login</a>
+          </div>
+
+          <button type="submit" class="login-btn" id="loginButton">Login</button>
+        </form>
+
+        <div class="divider">
+          <span id="loginHelper">Use your student account created by admin.</span>
         </div>
-
-        <div class="form-options">
-          <label class="remember-me">
-            <input type="checkbox" id="rememberMe" name="rememberMe" />
-            <span>Remember me</span>
-          </label>
-          <a href="../Admin/login.html" class="admin-login-link">Admin Login</a>
-        </div>
-
-        <button type="submit" class="login-btn" id="loginButton">Login</button>
-      </form>
-
-      <div class="divider">
-        <span id="loginHelper">Use your student account created by admin.</span>
       </div>
-    </div>
+    </section>
 
     <div id="errorModal" class="modal">
       <div class="modal-content">
