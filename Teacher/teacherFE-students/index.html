@@ -8,18 +8,86 @@
 </head>
 <body>
   <div class="navbar">
-    <button class="back-btn" onclick="goBack()">← Back to Dashboard</button>
+    <div class="navbar-inner">
+      <button class="back-btn" onclick="goBack()">Back to Dashboard</button>
+      <div class="navbar-meta">
+        <span class="navbar-label">Teacher Module</span>
+        <strong>Student Management</strong>
+      </div>
+    </div>
   </div>
 
   <div class="container">
-    <h1>Manage Students</h1>
-    <p class="muted">Manage student list and view basic progress (local demo)</p>
+    <div class="page-header">
+      <div class="page-copy">
+        <span class="eyebrow">Roster Control</span>
+        <h1>Manage Students</h1>
+        <p class="muted">Review your roster, inspect academic details, and manage student access from one proper workspace.</p>
+      </div>
+      <div class="header-actions">
+        <button class="ghost-btn" type="button" onclick="resetFilters()">Reset Filters</button>
+        <button class="refresh-btn" type="button" onclick="loadStudents()">Refresh Roster</button>
+      </div>
+    </div>
 
-    <div id="studentsList" class="students-list"></div>
+    <section class="summary-grid">
+      <div class="summary-card summary-card-accent">
+        <span class="summary-label">Total Students</span>
+        <strong id="totalStudents">0</strong>
+        <small id="summarySubtitle">Teacher-visible roster</small>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Active</span>
+        <strong id="activeStudents">0</strong>
+        <small>Students who can log in</small>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Inactive</span>
+        <strong id="inactiveStudents">0</strong>
+        <small>Access paused by teacher</small>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Visible Now</span>
+        <strong id="visibleStudents">0</strong>
+        <small>After search and filters</small>
+      </div>
+    </section>
 
-    <div class="actions">
-      <button onclick="addDemoStudent()">Add Demo Student</button>
-      <button onclick="clearStudents()">Clear All</button>
+    <section class="control-panel">
+      <div class="toolbar">
+        <input
+          type="search"
+          id="searchInput"
+          class="search-input"
+          placeholder="Search by student name or email"
+        />
+        <select id="statusFilter" class="filter-select">
+          <option value="all">All Statuses</option>
+          <option value="active">Active Only</option>
+          <option value="inactive">Inactive Only</option>
+        </select>
+        <select id="sortFilter" class="filter-select">
+          <option value="newest">Newest First</option>
+          <option value="name_asc">Name A-Z</option>
+          <option value="name_desc">Name Z-A</option>
+          <option value="year_asc">Year Low-High</option>
+          <option value="year_desc">Year High-Low</option>
+        </select>
+      </div>
+
+      <div class="results-bar">
+        <div class="results-copy">
+          <strong id="resultsTitle">Loading roster...</strong>
+          <p id="resultsMeta">Fetching teacher-visible students from the server.</p>
+        </div>
+        <div id="statusMessage" class="status-message" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <div id="studentsList" class="students-list">
+      <div class="empty-state">
+        <p>Loading students...</p>
+      </div>
     </div>
   </div>
 

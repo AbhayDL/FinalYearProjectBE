@@ -10,31 +10,61 @@
   <div class="navbar">
     <div class="navbar-inner">
       <button class="back-btn" onclick="goBack()">Back to Students</button>
+      <div class="navbar-meta">
+        <span class="navbar-label">Teacher Module</span>
+        <strong>Student Detail View</strong>
+      </div>
     </div>
   </div>
 
   <div class="container">
-    <div class="page-header">
-      <div>
-        <h1 id="studentName">Student Details</h1>
-        <p class="muted" id="studentSubtitle">Loading student overview...</p>
+    <div class="page-header detail-page-header">
+      <div class="page-copy detail-hero-copy">
+        <span class="eyebrow">Student Snapshot</span>
+        <div class="detail-hero-row">
+          <div id="studentAvatar" class="student-avatar detail-avatar">ST</div>
+          <div>
+            <h1 id="studentName">Student Details</h1>
+            <p class="muted" id="studentSubtitle">Loading student overview...</p>
+            <p class="detail-hero-meta" id="studentAcademicMeta">Preparing academic summary...</p>
+          </div>
+        </div>
       </div>
-      <div id="statusMessage" class="status-message" aria-live="polite"></div>
+      <div class="header-actions detail-header-actions">
+        <button class="ghost-btn" type="button" onclick="goBack()">Back to Roster</button>
+        <button class="refresh-btn" type="button" onclick="loadStudentOverview()">Refresh Details</button>
+      </div>
     </div>
 
-    <section class="summary-grid" id="summaryGrid">
-      <div class="summary-card">
+    <section class="summary-grid detail-summary-grid" id="summaryGrid">
+      <div class="summary-card summary-card-accent">
         <span class="summary-label">Total Submissions</span>
         <strong id="totalSubmissions">0</strong>
+        <small>Recorded for teacher-visible problems</small>
       </div>
       <div class="summary-card">
         <span class="summary-label">Solved</span>
         <strong id="solvedCount">0</strong>
+        <small>Passed submissions</small>
       </div>
       <div class="summary-card">
         <span class="summary-label">Pending Queries</span>
         <strong id="queryCount">0</strong>
+        <small>Needs teacher attention</small>
       </div>
+      <div class="summary-card">
+        <span class="summary-label">Review State</span>
+        <strong id="studentStateLabel">Loading</strong>
+        <small id="studentStateMeta">Checking student activity...</small>
+      </div>
+    </section>
+
+    <section class="detail-status-row">
+      <div class="results-copy">
+        <strong id="detailResultsTitle">Loading overview...</strong>
+        <p id="detailResultsMeta">Pulling student profile and submission summary.</p>
+      </div>
+      <div id="statusMessage" class="status-message" aria-live="polite"></div>
     </section>
 
     <section class="detail-layout">
@@ -51,8 +81,11 @@
 
     <section class="detail-card submissions-section">
       <div class="section-title-row">
-        <h2>Submissions</h2>
-        <button class="refresh-btn" onclick="loadStudentOverview()">Refresh</button>
+        <div>
+          <h2>Submission Timeline</h2>
+          <p class="muted compact-muted">Latest teacher-visible work for this student.</p>
+        </div>
+        <button class="refresh-btn" type="button" onclick="loadStudentOverview()">Refresh</button>
       </div>
       <div id="submissionList" class="students-list"></div>
     </section>

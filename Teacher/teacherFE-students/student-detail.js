@@ -1,5 +1,17 @@
-const API_BASE = localStorage.getItem("API_BASE_URL") || "http://localhost:4000";
+const DEFAULT_BASE_URL = localStorage.getItem("API_BASE_URL") || "http://localhost:4000";
+const AUTH_BASE_URL = localStorage.getItem("AUTH_BASE_URL") || DEFAULT_BASE_URL;
 const TEACHER_LOGIN_URL = "../../Student/index.html?role=teacher";
+
+function getBaseUrl(base) {
+  try {
+    const url = new URL(base);
+    return url.origin;
+  } catch {
+    return DEFAULT_BASE_URL;
+  }
+}
+
+const EFFECTIVE_AUTH_BASE = getBaseUrl(AUTH_BASE_URL);
 
 function escapeHtml(text) {
   return String(text ?? "")
@@ -23,6 +35,11 @@ function getStudentId() {
 
 function goBack() {
   window.location.href = "index.html";
+}
+
+function getStudentInitials(name) {
+  const parts = String(name || "Student").trim().split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase() || "").join("") || "S";
 }
 
 function setStatus(message, type = "") {
@@ -60,14 +77,56 @@ function getSubmissionStatusBadge(submission) {
   return '<span class="status-pill inactive">Attempted</span>';
 }
 
+function getStudentState(summary = {}, student = {}) {
+  if (!student.isActive) {
+    return { label: "Inactive", meta: "Student access is currently paused." };
+  }
+  if ((summary.queryCount || 0) > 0) {
+    return { label: "Needs Review", meta: "One or more submissions still have pending queries." };
+  }
+  if ((summary.solvedCount || 0) > 0) {
+    return { label: "Progressing", meta: "Student has solved at least one teacher-visible problem." };
+  }
+  if ((summary.totalSubmissions || 0) > 0) {
+    return { label: "Attempting", meta: "Student has submitted work but not solved anything yet." };
+  }
+  return { label: "Not Started", meta: "No teacher-visible submissions have been recorded yet." };
+}
+
+function updateHeader(student = {}, summary = {}) {
+  const avatar = document.getElementById("studentAvatar");
+  const academicMeta = document.getElementById("studentAcademicMeta");
+  const resultsTitle = document.getElementById("detailResultsTitle");
+  const resultsMeta = document.getElementById("detailResultsMeta");
+  const stateLabel = document.getElementById("studentStateLabel");
+  const stateMeta = document.getElementById("studentStateMeta");
+
+  if (avatar) avatar.textContent = getStudentInitials(student.name);
+  if (academicMeta) {
+    academicMeta.textContent = `${student.department || "Department not set"} | ${student.year || "Year not set"} | ${student.semester || "Semester not set"}`;
+  }
+
+  const reviewState = getStudentState(summary, student);
+  if (stateLabel) stateLabel.textContent = reviewState.label;
+  if (stateMeta) stateMeta.textContent = reviewState.meta;
+
+  if (resultsTitle) {
+    resultsTitle.textContent = `${summary.totalSubmissions || 0} submission${Number(summary.totalSubmissions || 0) === 1 ? "" : "s"} in view`;
+  }
+  if (resultsMeta) {
+    resultsMeta.textContent = `Solved: ${summary.solvedCount || 0} | Attempted: ${summary.attemptedCount || 0} | Pending queries: ${summary.queryCount || 0}`;
+  }
+}
+
 function renderSubmissions(submissions) {
   const list = document.getElementById("submissionList");
   if (!list) return;
 
   if (!Array.isArray(submissions) || submissions.length === 0) {
     list.innerHTML = `
-      <div class="empty-state">
-        <p>No submissions found for this student yet.</p>
+      <div class="empty-state roster-empty-state">
+        <strong>No submissions found for this student yet.</strong>
+        <p>This student has not submitted any teacher-visible problem attempts so far.</p>
       </div>
     `;
     return;
@@ -75,23 +134,28 @@ function renderSubmissions(submissions) {
 
   list.innerHTML = submissions.map((submission) => `
     <article class="student-card detail-submission-card">
-      <div class="student-info">
-        <div class="student-name-row">
-          <strong class="student-name">${escapeHtml(submission.problem?.title || "Problem")}</strong>
-          ${getSubmissionStatusBadge(submission)}
+      <div class="student-primary">
+        <div class="student-avatar detail-avatar-small">${escapeHtml(getStudentInitials(submission.problem?.title || "Problem"))}</div>
+        <div class="student-info">
+          <div class="student-name-row">
+            <strong class="student-name">${escapeHtml(submission.problem?.title || "Problem")}</strong>
+            ${getSubmissionStatusBadge(submission)}
+          </div>
+          <div class="student-email">${escapeHtml(submission.problem?.subject || "Unknown subject")}</div>
+          <div class="student-academic">Updated ${submission.updatedAt ? new Date(submission.updatedAt).toLocaleString() : "-"}</div>
         </div>
-        <div class="student-email">${escapeHtml(submission.problem?.subject || "Unknown subject")}</div>
       </div>
-      <div class="student-meta">
-        <span class="meta-pill">Score: ${submission.score || 0}</span>
-        <span class="meta-pill">Tests: ${submission.passedCount || 0}/${submission.totalCount || 0}</span>
-        <span class="meta-pill">Updated: ${submission.updatedAt ? new Date(submission.updatedAt).toLocaleString() : "-"}</span>
-        <span class="meta-pill">Answered: ${submission.teacherAnsweredAt ? new Date(submission.teacherAnsweredAt).toLocaleString() : "Not answered"}</span>
-      </div>
-      <div class="student-actions">
-        ${submission.problem?.id
-          ? `<a class="action-btn" href="../teacherFE-dashboard/task-completion.html?problem_id=${encodeURIComponent(submission.problem.id)}&student_id=${encodeURIComponent(getStudentId() || "")}&submission_id=${encodeURIComponent(submission.id)}">Open Review</a>`
-          : ""}
+      <div class="student-secondary">
+        <div class="student-meta">
+          <span class="meta-pill">Score: ${submission.score || 0}</span>
+          <span class="meta-pill">Tests: ${submission.passedCount || 0}/${submission.totalCount || 0}</span>
+          <span class="meta-pill">Answered: ${submission.teacherAnsweredAt ? new Date(submission.teacherAnsweredAt).toLocaleString() : "Not answered"}</span>
+        </div>
+        <div class="student-actions">
+          ${submission.problem?.id
+            ? `<a class="action-btn" href="../teacherFE-dashboard/task-completion.html?problem_id=${encodeURIComponent(submission.problem.id)}&student_id=${encodeURIComponent(getStudentId() || "")}&submission_id=${encodeURIComponent(submission.id)}">Open Review</a>`
+            : ""}
+        </div>
       </div>
     </article>
   `).join("");
@@ -108,14 +172,70 @@ async function loadStudentOverview() {
   setStatus("Loading student details...");
 
   try {
-    const res = await fetch(`${API_BASE}/api/teacher/students/${encodeURIComponent(studentId)}/overview`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(data.message || "Failed to load student details");
+    const fetchOverviewFrom = async (baseUrl) => {
+      try {
+        const res = await fetch(`${baseUrl}/api/teacher/students/${encodeURIComponent(studentId)}/overview`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        return { res, baseUrl };
+      } catch (error) {
+        return { error, baseUrl };
+      }
+    };
+
+    const parseOverviewResponse = async (res, baseUrl) => {
+      if (res.status === 401 || res.status === 403) {
+        return { error: "unauthorized" };
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return { error: data.message || `http_${res.status}` };
+      }
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        return { error: "non_json" };
+      }
+      const data = await res.json();
+      return { data, baseUrl };
+    };
+
+    let attempt = await fetchOverviewFrom(EFFECTIVE_AUTH_BASE);
+    let parsed = null;
+
+    if (!attempt.error) {
+      parsed = await parseOverviewResponse(attempt.res, attempt.baseUrl);
     }
 
+    if (attempt.error || (parsed && parsed.error)) {
+      if (EFFECTIVE_AUTH_BASE !== DEFAULT_BASE_URL) {
+        const fallback = await fetchOverviewFrom(DEFAULT_BASE_URL);
+        if (!fallback.error) {
+          const fallbackParsed = await parseOverviewResponse(fallback.res, fallback.baseUrl);
+          if (!fallbackParsed.error) {
+            localStorage.setItem("AUTH_BASE_URL", DEFAULT_BASE_URL);
+            parsed = fallbackParsed;
+          } else {
+            parsed = fallbackParsed;
+          }
+        } else {
+          throw fallback.error;
+        }
+      } else if (attempt.error) {
+        throw attempt.error;
+      }
+    }
+
+    if (!parsed || parsed.error) {
+      if (parsed && parsed.error === "unauthorized") {
+        throw new Error("Your session has expired. Please log in again.");
+      }
+      if (parsed && parsed.error === "non_json") {
+        throw new Error("Unexpected server response. Check your API base URL.");
+      }
+      throw new Error(parsed?.error || "Failed to load student details");
+    }
+
+    const data = parsed.data || {};
     const student = data.student || {};
     const summary = data.summary || {};
 
@@ -125,10 +245,13 @@ async function loadStudentOverview() {
     document.getElementById("solvedCount").textContent = summary.solvedCount || 0;
     document.getElementById("queryCount").textContent = summary.queryCount || 0;
 
+    updateHeader(student, summary);
+
     renderInfoList("studentInfo", [
       { label: "Full Name", value: student.name || "Unknown" },
       { label: "Email", value: student.email || "Unknown" },
       { label: "Status", value: student.isActive ? "Active" : "Inactive" },
+      { label: "Department", value: student.department || "Not set" },
       { label: "Year", value: student.year || "Not set" },
       { label: "Semester", value: student.semester || "Not set" },
       { label: "Joined", value: student.createdAt ? new Date(student.createdAt).toLocaleString() : "-" }

@@ -75,10 +75,23 @@ function showSection(sectionName, event) {
   if (!sectionElement) return;
   sectionElement.classList.add("active");
 
-  // Add active class to clicked nav item (if available)
+  // Add active class to clicked nav item or infer it from the section.
+  let activeNavItem = null;
   if (event && event.target) {
-    const navItem = event.target.closest(".nav-item");
-    if (navItem) navItem.classList.add("active");
+    activeNavItem = event.target.closest(".nav-item");
+  }
+  if (!activeNavItem) {
+    activeNavItem = Array.from(document.querySelectorAll(".sidebar-nav .nav-item")).find((item) => {
+      const text = item.textContent.toLowerCase();
+      if (sectionName === "dashboard") return text.includes("dashboard");
+      if (sectionName === "students") return text.includes("manage students");
+      if (sectionName === "settings") return text.includes("settings");
+      if (sectionName === "reports") return text.includes("reports");
+      return false;
+    });
+  }
+  if (activeNavItem) {
+    activeNavItem.classList.add("active");
   }
 
   // Load section data
