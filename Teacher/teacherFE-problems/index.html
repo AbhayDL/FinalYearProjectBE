@@ -96,6 +96,16 @@
     </main>
   </div>
 
+  <div id="deleteMenu" class="delete-menu hidden" role="dialog" aria-label="Delete problem options">
+    <div class="delete-menu-header">
+      <strong>Delete Problem</strong>
+      <p>Choose how you want to remove this problem.</p>
+    </div>
+    <button type="button" class="delete-menu-btn delete-menu-soft" id="softDeleteBtn">Soft Delete</button>
+    <button type="button" class="delete-menu-btn delete-menu-hard" id="hardDeleteBtn">Hard Delete</button>
+    <p class="delete-menu-note" id="deleteMenuNote">Soft delete archives the problem. Hard delete permanently removes linked data.</p>
+  </div>
+
   <script src="script.js"></script>
 </body>
 </html>

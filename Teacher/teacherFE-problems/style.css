@@ -359,6 +359,79 @@ h1 {
   box-shadow: var(--shadow);
 }
 
+.delete-menu {
+  position: fixed;
+  z-index: 1200;
+  width: min(280px, calc(100vw - 2rem));
+  padding: 1rem;
+  border-radius: 1rem;
+  background: rgba(9, 14, 28, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 24px 40px -22px rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(18px);
+}
+
+.delete-menu.hidden {
+  display: none;
+}
+
+.delete-menu-header {
+  margin-bottom: 0.85rem;
+}
+
+.delete-menu-header strong {
+  display: block;
+  color: #f8fafc;
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.delete-menu-header p {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.delete-menu-btn {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 0.85rem;
+  padding: 0.8rem 0.95rem;
+  cursor: pointer;
+  font-weight: 700;
+  margin-bottom: 0.6rem;
+  transition: all 0.25s ease;
+}
+
+.delete-menu-soft {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fde68a;
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.delete-menu-soft:hover {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: rgba(245, 158, 11, 0.42);
+}
+
+.delete-menu-hard {
+  background: rgba(251, 113, 133, 0.14);
+  color: #fecdd3;
+  border-color: rgba(251, 113, 133, 0.25);
+}
+
+.delete-menu-hard:hover {
+  background: rgba(251, 113, 133, 0.22);
+  border-color: rgba(251, 113, 133, 0.42);
+}
+
+.delete-menu-note {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  margin-top: 0.2rem;
+}
+
 .problem-card {
   display: flex;
   flex-direction: column;

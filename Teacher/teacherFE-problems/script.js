@@ -6,7 +6,10 @@ const TEACHER_LOGIN_URL = "../../Student/index.html?role=teacher";
 const state = {
   problems: [],
   subjects: [],
-  selectedSubject: null
+  selectedSubject: null,
+  pendingDeleteId: "",
+  pendingDeleteMode: "",
+  deleteAnchorRect: null
 };
 
 function goBack() {
@@ -24,6 +27,8 @@ function handleLogout() {
 }
 
 window.addEventListener("DOMContentLoaded", initPage);
+document.addEventListener("click", handleGlobalClick);
+document.addEventListener("keydown", handleGlobalKeydown);
 
 async function initPage() {
   const token = localStorage.getItem("teacherToken");
@@ -63,12 +68,28 @@ async function initPage() {
         problemsList.innerHTML = "<p>No tasks available.</p>";
       }
       if (tasksTitle) tasksTitle.textContent = "Tasks";
-      if (tasksHint) tasksHint.textContent = "Ask admin to assign you a subject.";
+    if (tasksHint) tasksHint.textContent = "Ask admin to assign you a subject.";
     }
+
+    wireDeleteMenu();
   } catch (error) {
     console.error(error);
     if (subjectsList) subjectsList.innerHTML = "<p>Failed to load subjects.</p>";
     if (problemsList) problemsList.innerHTML = "<p>Failed to load tasks.</p>";
+    wireDeleteMenu();
+  }
+}
+
+function wireDeleteMenu() {
+  const softBtn = document.getElementById("softDeleteBtn");
+  const hardBtn = document.getElementById("hardDeleteBtn");
+  if (softBtn && !softBtn.dataset.bound) {
+    softBtn.dataset.bound = "true";
+    softBtn.addEventListener("click", () => confirmDeleteMode("soft"));
+  }
+  if (hardBtn && !hardBtn.dataset.bound) {
+    hardBtn.dataset.bound = "true";
+    hardBtn.addEventListener("click", () => confirmDeleteMode("hard"));
   }
 }
 
@@ -210,7 +231,7 @@ function renderTasksForSubject(subjectName) {
       <div class="problem-actions">
         <button onclick="viewProblem('${problem._id}')">View</button>
         <button onclick="editProblem('${problem._id}')">Edit</button>
-        <button class="del" onclick="deleteProblem('${problem._id}')">Delete</button>
+        <button class="del" onclick="openDeleteMenu(event, '${problem._id}')">Delete</button>
       </div>
     `;
     problemsList.appendChild(card);
@@ -244,20 +265,115 @@ function editProblem(id) {
 }
 
 async function deleteProblem(id) {
-  if (!confirm("Delete this problem? This cannot be undone.")) return;
+  return performDelete(id, "soft");
+}
+
+function openDeleteMenu(event, id) {
+  const trigger = event?.currentTarget;
+  const menu = document.getElementById("deleteMenu");
+  const note = document.getElementById("deleteMenuNote");
+  if (!trigger || !menu) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const rect = trigger.getBoundingClientRect();
+  state.pendingDeleteId = id;
+  state.deleteAnchorRect = rect;
+
+  if (note) {
+    note.textContent = "Soft delete archives the problem. Hard delete permanently removes submissions, monitoring records, and discussions.";
+  }
+
+  menu.classList.remove("hidden");
+  positionDeleteMenu(rect);
+}
+
+function positionDeleteMenu(anchorRect = state.deleteAnchorRect) {
+  const menu = document.getElementById("deleteMenu");
+  if (!menu || !anchorRect || menu.classList.contains("hidden")) return;
+
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const margin = 12;
+  const menuWidth = Math.min(280, viewportWidth - margin * 2);
+
+  menu.style.width = `${menuWidth}px`;
+  const menuHeight = menu.offsetHeight || 180;
+
+  let left = anchorRect.right + 10;
+  if (left + menuWidth > viewportWidth - margin) {
+    left = Math.max(margin, anchorRect.left - menuWidth - 10);
+  }
+
+  let top = anchorRect.top - 6;
+  const maxTop = viewportHeight - menuHeight - margin;
+  if (top > maxTop) {
+    top = Math.max(margin, maxTop);
+  }
+
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+
+function closeDeleteMenu() {
+  const menu = document.getElementById("deleteMenu");
+  if (!menu) return;
+  menu.classList.add("hidden");
+  state.pendingDeleteId = "";
+  state.pendingDeleteMode = "";
+  state.deleteAnchorRect = null;
+}
+
+function handleGlobalClick(event) {
+  const menu = document.getElementById("deleteMenu");
+  if (!menu || menu.classList.contains("hidden")) return;
+  if (menu.contains(event.target)) return;
+  if (event.target.closest(".problem-actions .del")) return;
+  closeDeleteMenu();
+}
+
+function handleGlobalKeydown(event) {
+  if (event.key === "Escape") {
+    closeDeleteMenu();
+  }
+}
+
+window.addEventListener("resize", () => {
+  if (state.deleteAnchorRect) {
+    positionDeleteMenu();
+  }
+});
+
+async function confirmDeleteMode(mode) {
+  const id = state.pendingDeleteId;
+  if (!id) return;
+
+  const confirmationMessage = mode === "hard"
+    ? "Hard delete will permanently remove this problem, its submissions, monitoring records, and discussions. Continue?"
+    : "Soft delete will archive this problem and hide it from the active problems list. Continue?";
+
+  if (!confirm(confirmationMessage)) return;
+
+  closeDeleteMenu();
+  await performDelete(id, mode);
+}
+
+async function performDelete(id, mode) {
   try {
     const token = localStorage.getItem("teacherToken");
     if (!token) {
       window.location.href = TEACHER_LOGIN_URL;
       return;
     }
-    const res = await fetch(`${API_BASE}/api/problems/${id}`, {
+    const res = await fetch(`${API_BASE}/api/problems/${id}?mode=${encodeURIComponent(mode)}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` }
     });
     if (!res.ok) throw new Error("Delete failed");
 
     state.problems = state.problems.filter(problem => problem._id !== id);
+    alert(mode === "hard" ? "Problem permanently deleted." : "Problem archived.");
     if (state.selectedSubject) {
       renderTasksForSubject(state.selectedSubject);
     } else if (state.subjects.length > 0) {

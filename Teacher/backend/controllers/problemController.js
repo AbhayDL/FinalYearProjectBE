@@ -1,5 +1,8 @@
 const Problem = require("../models/Problem");
 const Subject = require("../models/Subject");
+const Submission = require("../models/Submission");
+const AntiCheatEvent = require("../models/AntiCheatEvent");
+const Discussion = require("../models/Discussion");
 
 function normalizeAcademicValue(value) {
   return String(value || "")
@@ -168,8 +171,14 @@ exports.getProblemById = async (req, res) => {
 exports.getProblemsByTeacher = async (req, res) => {
   try {
     const email = req.user ? req.user.email : req.params.email;
+    const filter = { createdBy: email };
+
+    if (req.query.includeArchived !== "true") {
+      filter.status = { $ne: "archived" };
+    }
+
     const problems = await Problem.find(
-      { createdBy: email },
+      filter,
       "title description difficulty semester subject year department status createdAt"
     ).sort({ createdAt: -1 });
 
@@ -224,13 +233,38 @@ exports.updateProblem = async (req, res) => {
 exports.deleteProblem = async (req, res) => {
   try {
     const id = req.params.id;
+    const mode = String(req.query.mode || "soft").toLowerCase();
     const existing = await Problem.findById(id);
     if (!existing) return res.status(404).json({ message: "Problem not found" });
     if (existing.createdBy !== req.user.email) {
       return res.status(403).json({ message: "Not allowed to delete this problem" });
     }
-    const deleted = await Problem.findByIdAndDelete(id);
-    res.json({ message: "Problem deleted" });
+
+    if (mode === "hard") {
+      await Promise.all([
+        Problem.findByIdAndDelete(id),
+        Submission.deleteMany({ problem: id }),
+        AntiCheatEvent.deleteMany({ problem: id }),
+        Discussion.deleteMany({ problem: id })
+      ]);
+
+      return res.json({
+        message: "Problem and all related records deleted permanently",
+        mode: "hard"
+      });
+    }
+
+    const archived = await Problem.findByIdAndUpdate(
+      id,
+      { status: "archived" },
+      { new: true, runValidators: true }
+    );
+
+    return res.json({
+      message: "Problem archived successfully",
+      mode: "soft",
+      data: archived
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
