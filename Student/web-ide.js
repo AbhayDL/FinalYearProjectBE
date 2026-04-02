@@ -334,6 +334,7 @@ require(["vs/editor/editor.main"], async function () {
     fontSize: 14,
     automaticLayout: true
   });
+  window.webEditor = webEditor;
 
   webEditor.onDidChangeModelContent(() => {
     setStatus("Preview is out of date. Refresh or save to update it.");

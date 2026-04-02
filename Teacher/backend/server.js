@@ -22,6 +22,7 @@ app.use("/api/subjects", require("./routes/subjectRoutes"));
 app.use("/api/submissions", require("./routes/submissionRoutes"));
 app.use("/api/execute", require("./routes/executeRoutes"));
 app.use("/api/languages", require("./routes/languages"));
+app.use("/api/monitoring", require("./routes/monitoring"));
 
 app.get("/", (req, res) => {
   res.json({ message: "CodeAssPlat shared backend running" });

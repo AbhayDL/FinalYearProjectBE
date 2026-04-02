@@ -153,7 +153,7 @@ function renderSubmissions(submissions) {
         </div>
         <div class="student-actions">
           ${submission.problem?.id
-            ? `<a class="action-btn" href="../teacherFE-dashboard/task-completion.html?problem_id=${encodeURIComponent(submission.problem.id)}&student_id=${encodeURIComponent(getStudentId() || "")}&submission_id=${encodeURIComponent(submission.id)}">Open Review</a>`
+            ? `<a class="action-btn" href="../teacherFE-monitoring/index.html?student_id=${encodeURIComponent(getStudentId() || "")}&problem_id=${encodeURIComponent(submission.problem.id)}&submission_id=${encodeURIComponent(submission.id)}">Open Review</a>`
             : ""}
         </div>
       </div>

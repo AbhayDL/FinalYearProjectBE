@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anti-Cheat Monitoring - Teacher</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="navbar">
+    <div class="navbar-inner">
+      <button class="back-btn" onclick="goBack()">Back to Dashboard</button>
+      <div class="navbar-meta">
+        <span class="navbar-label">Teacher Module</span>
+        <strong>Anti-Cheat Monitoring</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="page-header">
+      <div class="page-copy">
+        <span class="eyebrow">Examination Integrity</span>
+        <h1>Anti-Cheat Monitoring</h1>
+        <p class="muted">The Anti-Cheat Monitoring Screen records student activities such as tab switching, copy-paste actions, and session behavior. This enhances the reliability and integrity of the examination process by helping teachers review suspicious patterns with clear evidence.</p>
+      </div>
+      <div class="header-actions">
+        <button class="ghost-btn" type="button" onclick="resetFilters()">Reset Filters</button>
+        <button class="refresh-btn" type="button" onclick="loadMonitoringSessions()">Refresh Monitoring</button>
+      </div>
+    </div>
+
+    <section class="integrity-panel">
+      <div class="integrity-card integrity-card-primary">
+        <span class="integrity-label">Purpose</span>
+        <h2>Evidence-based monitoring for examinations</h2>
+        <p>This review screen helps teachers inspect suspicious activity through recorded session signals. It is intended to support fair academic review with explainable indicators rather than hidden or automatic punishment.</p>
+      </div>
+      <div class="integrity-card">
+        <span class="integrity-label">Signals Tracked</span>
+        <ul class="integrity-list">
+          <li>Tab switching and page visibility changes</li>
+          <li>Copy and paste attempts during coding sessions</li>
+          <li>Fullscreen exits and returns</li>
+          <li>Window blur and inactivity behavior</li>
+          <li>Run, save, and submission actions</li>
+        </ul>
+      </div>
+      <div class="integrity-card">
+        <span class="integrity-label">Teacher Review</span>
+        <ul class="integrity-list">
+          <li>Select a student from the monitoring list</li>
+          <li>Filter monitored problems by subject</li>
+          <li>Open the student problem review player</li>
+          <li>Use signals as supporting evidence, not final verdicts</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="summary-grid">
+      <div class="summary-card summary-card-accent">
+        <span class="summary-label">Total Sessions</span>
+        <strong id="totalSessions">0</strong>
+        <small>Teacher-visible monitoring records</small>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Active Sessions</span>
+        <strong id="activeSessions">0</strong>
+        <small>Recent or currently open sessions</small>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Flagged Sessions</span>
+        <strong id="flaggedSessions">0</strong>
+        <small>Watch or high risk</small>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">High Risk</span>
+        <strong id="highRiskSessions">0</strong>
+        <small>Needs manual review</small>
+      </div>
+    </section>
+
+    <section class="control-panel">
+      <div class="toolbar">
+        <input type="search" id="searchInput" class="search-input" placeholder="Search by student name or email" />
+        <select id="subjectFilter" class="filter-select">
+          <option value="all">All Subjects</option>
+        </select>
+        <select id="riskFilter" class="filter-select">
+          <option value="all">All Risk Levels</option>
+          <option value="low">Low</option>
+          <option value="watch">Watch</option>
+          <option value="high">High</option>
+        </select>
+        <select id="statusFilter" class="filter-select">
+          <option value="all">All Session Status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+
+      <div class="results-bar">
+        <div class="results-copy">
+          <strong id="resultsTitle">Loading students...</strong>
+          <p id="resultsMeta">Monitoring data is being loaded from the server.</p>
+        </div>
+        <div id="statusMessage" class="status-message" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="monitor-layout player-layout">
+      <div>
+        <div id="studentList" class="session-list">
+          <div class="empty-state">
+            <p>Loading monitored students...</p>
+          </div>
+        </div>
+      </div>
+
+      <aside class="detail-card review-player-panel">
+        <div class="problem-strip-header">
+          <div>
+            <strong id="problemStripTitle">Student Problem Monitoring</strong>
+            <p class="muted compact-muted" id="problemStripMeta">Select a student to view monitored problems by subject.</p>
+          </div>
+        </div>
+        <div id="problemList" class="problem-strip empty-state">
+          <p>Select a student to see monitored problems.</p>
+        </div>
+
+        <div class="player-topbar">
+          <div class="player-controls">
+            <button class="player-btn" type="button" onclick="stepPlayer(-1)">Prev</button>
+            <button class="player-btn player-btn-primary" type="button" id="playerToggleBtn" onclick="togglePlayback()">Play</button>
+            <button class="player-btn" type="button" onclick="stepPlayer(1)">Next</button>
+          </div>
+          <input id="playerRange" class="player-range" type="range" min="0" max="0" value="0" />
+        </div>
+
+        <div class="player-stats-grid">
+          <div class="player-stat-card">
+            <span>Time Taken</span>
+            <strong id="playerTimeTaken">-</strong>
+          </div>
+          <div class="player-stat-card">
+            <span>Snapshots</span>
+            <strong id="playerSnapshots">0</strong>
+          </div>
+          <div class="player-stat-card">
+            <span>Edit Events</span>
+            <strong id="playerEditEvents">0</strong>
+          </div>
+          <div class="player-stat-card">
+            <span>Tab Switches</span>
+            <strong id="playerTabSwitches">0</strong>
+          </div>
+          <div class="player-stat-card">
+            <span>Paste Events</span>
+            <strong id="playerPasteEvents">0</strong>
+          </div>
+          <div class="player-stat-card">
+            <span>Copy Events</span>
+            <strong id="playerCopyEvents">0</strong>
+          </div>
+          <div class="player-stat-card">
+            <span>Window Blur</span>
+            <strong id="playerWindowBlur">0</strong>
+          </div>
+          <div class="player-stat-card">
+            <span>Risk Level</span>
+            <strong id="playerRiskLevel">-</strong>
+          </div>
+        </div>
+
+        <div id="playerCanvas" class="player-canvas empty-state">
+          <p>Select a student and problem to review recorded activity.</p>
+        </div>
+      </aside>
+    </section>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
