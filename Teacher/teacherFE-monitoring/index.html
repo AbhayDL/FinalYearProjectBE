@@ -62,9 +62,11 @@
       <div class="navbar">
         <div class="navbar-inner">
           <div class="navbar-actions">
-            <button class="back-btn" onclick="goBack()">Back to Dashboard</button>
             <button class="ghost-btn contextual-btn hidden" id="studentDetailBtn" type="button" onclick="goToStudentDetail()">Back to Student Detail</button>
+            <button class="ghost-btn" type="button" onclick="resetFilters()">Reset Filters</button>
+            <button class="refresh-btn" type="button" onclick="loadMonitoringSessions()">Refresh Monitoring</button>
           </div>
+
           <div class="navbar-meta">
             <span class="navbar-label">Teacher Module</span>
             <strong>Anti-Cheat Monitoring</strong>
@@ -73,17 +75,10 @@
       </div>
 
   <div class="container">
-    <div class="page-header">
-      <div class="page-copy">
-        <span class="eyebrow">Examination Integrity</span>
-        <h1>Anti-Cheat Monitoring</h1>
-        <p class="muted">The Anti-Cheat Monitoring Screen records student activities such as tab switching, copy-paste actions, and session behavior. This enhances the reliability and integrity of the examination process by helping teachers review suspicious patterns with clear evidence.</p>
-      </div>
-      <div class="header-actions">
-        <button class="ghost-btn" type="button" onclick="resetFilters()">Reset Filters</button>
-        <button class="refresh-btn" type="button" onclick="loadMonitoringSessions()">Refresh Monitoring</button>
-      </div>
-    </div>
+    
+      
+      
+    
 
     <section class="control-panel">
       <div class="toolbar">

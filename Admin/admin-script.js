@@ -504,6 +504,31 @@ function renderAnalyticsList(arr) {
     .join('')}</ul>`;
 }
 
+function getLanguageLabel(languageId) {
+  const map = {
+    1001: "HTML/CSS/JS",
+    71: "Python 3",
+    62: "Java",
+    54: "C++",
+    50: "C",
+    63: "JavaScript",
+    60: "Go",
+    73: "Rust",
+    72: "Ruby"
+  };
+  return map[Number(languageId)] || String(languageId || "Unknown");
+}
+
+function renderLanguageAnalyticsList(arr) {
+  if (!Array.isArray(arr) || arr.length === 0) return "<p>No data</p>";
+  return `<ul class="analytics-list">${arr
+    .map((item) => `
+      <li>${getLanguageLabel(item._id != null ? item._id : item.label)}: ${
+        item.count != null ? item.count : item.value || ""
+      }</li>`)
+    .join("")}</ul>`;
+}
+
 function displayAnalytics(data) {
   const container = document.getElementById("analyticsContent");
 
@@ -514,7 +539,7 @@ function displayAnalytics(data) {
     </div>
     <div class="analytics-card">
       <h3>Problems by Language</h3>
-      ${renderAnalyticsList(data.problemsByLanguage)}
+      ${renderLanguageAnalyticsList(data.problemsByLanguage)}
     </div>
     <div class="analytics-card">
       <h3>Subjects by Year</h3>

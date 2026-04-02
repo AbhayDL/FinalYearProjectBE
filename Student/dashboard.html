@@ -12,8 +12,14 @@
     <!-- Sidebar -->
     <nav class="sidebar">
       <div class="sidebar-header">
-        <h2 id="sidebar-welcome-title">Student Name</h2>
-        <p id="sidebar-welcome-subtitle">student@email.com</p>
+        <div class="sidebar-profile-card">
+          <div class="sidebar-avatar" id="sidebar-avatar">S</div>
+          <div class="sidebar-profile-copy">
+            <h2 id="sidebar-welcome-title">Student Name</h2>
+            <p id="sidebar-welcome-subtitle">student@email.com</p>
+            <p id="sidebar-welcome-academics">Department | Year | Semester</p>
+          </div>
+        </div>
       </div>
       <ul class="sidebar-nav">
         <li class="nav-item active" onclick="showSection('dashboard')">
@@ -24,6 +30,9 @@
         </li>
         <li class="nav-item" onclick="showSection('submissions')">
           <i class="fas fa-paper-plane"></i> Submissions
+        </li>
+        <li class="nav-item" onclick="showSection('code-runner')">
+          <i class="fas fa-laptop-code"></i> Code Runner
         </li>
         <li class="nav-item" onclick="showSection('profile')">
           <i class="fas fa-user"></i> Profile
@@ -134,6 +143,33 @@
 
         <div id="submissions-list" class="submissions-list">
           <p>Loading submissions...</p>
+        </div>
+      </section>
+
+      <section id="code-runner-section" class="section">
+        <header class="section-header">
+          <h1>Code Runner</h1>
+          <p>Practice in the same IDEs without affecting assignment submissions</p>
+        </header>
+
+        <div class="practice-runner-grid">
+          <article class="practice-runner-card">
+            <div class="practice-runner-icon">
+              <i class="fas fa-terminal"></i>
+            </div>
+            <h2>Programming IDE</h2>
+            <p>Practice C, C++, Java, Python, JavaScript and more in the coding runner with custom input.</p>
+            <button class="btn-primary" onclick="openPracticeRunner('programming')">Open Programming IDE</button>
+          </article>
+
+          <article class="practice-runner-card">
+            <div class="practice-runner-icon">
+              <i class="fas fa-globe"></i>
+            </div>
+            <h2>Web IDE</h2>
+            <p>Experiment with HTML, CSS, and JavaScript in the live preview workspace for GUI practice.</p>
+            <button class="btn-secondary" onclick="openPracticeRunner('web')">Open Web IDE</button>
+          </article>
         </div>
       </section>
 

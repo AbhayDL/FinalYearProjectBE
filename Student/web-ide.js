@@ -3,6 +3,9 @@ const PROBLEMS_BASE_URL = localStorage.getItem("PROBLEMS_BASE_URL") || API_BASE_
 const AUTH_BASE_URL = localStorage.getItem("AUTH_BASE_URL") || API_BASE_URL;
 const LOGIN_PAGE = "index.html";
 const WEB_LANGUAGE_ID = 1001;
+const pageParams = new URLSearchParams(window.location.search);
+const isPracticeMode = pageParams.get("mode") === "practice";
+const WEB_PRACTICE_STORAGE_KEY = "student_web_practice_draft";
 
 let currentProblem = null;
 let webEditor = null;
@@ -69,6 +72,26 @@ function setAnswerBanner(message) {
   } else {
     banner.style.display = "none";
     banner.textContent = "";
+  }
+}
+
+function savePracticeWebDraft() {
+  if (!webEditor) return;
+  const payload = {
+    sourceCode: webEditor.getValue(),
+    savedAt: new Date().toISOString()
+  };
+  localStorage.setItem(WEB_PRACTICE_STORAGE_KEY, JSON.stringify(payload));
+  setCommentStatus(`Practice draft saved locally at ${new Date(payload.savedAt).toLocaleTimeString()}.`);
+  setStatus("Practice draft saved locally.");
+}
+
+function loadPracticeWebDraft() {
+  try {
+    const raw = localStorage.getItem(WEB_PRACTICE_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
   }
 }
 
@@ -227,6 +250,11 @@ async function loadSavedSubmission(problemId) {
 }
 
 async function saveWebSubmission(markForReview = false) {
+  if (isPracticeMode) {
+    savePracticeWebDraft();
+    renderPreview();
+    return;
+  }
   if (isSaving || !currentProblem || !webEditor) return;
 
   const token = localStorage.getItem("studentToken");
@@ -276,10 +304,53 @@ async function saveWebSubmission(markForReview = false) {
 }
 
 async function loadProblem() {
-  const params = new URLSearchParams(window.location.search);
-  const problemId = params.get("problem_id");
+  const problemId = pageParams.get("problem_id");
   const listSection = document.getElementById("problem-list-section");
   const problemStatement = document.querySelector(".problem-statement");
+
+  if (isPracticeMode) {
+    currentProblem = {
+      _id: "__practice_web__",
+      title: "Web Practice",
+      description: "Use this live preview workspace to practice HTML, CSS, and JavaScript without sending anything for teacher review.",
+      inputFormat: "GUI task",
+      outputFormat: "Rendered page / component"
+    };
+
+    if (listSection) listSection.style.display = "none";
+    if (problemStatement) problemStatement.style.display = "block";
+
+    const queryRow = document.querySelector(".query-toggle-row");
+    const reviewPanel = document.querySelector(".gui-proof-panel");
+    const reviewBtn = document.getElementById("send-review-btn");
+    const saveBtn = document.getElementById("save-web-btn");
+
+    if (queryRow) queryRow.style.display = "none";
+    if (reviewPanel) reviewPanel.style.display = "none";
+    if (reviewBtn) reviewBtn.style.display = "none";
+    if (saveBtn) saveBtn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save Draft';
+
+    document.getElementById("problem-title").textContent = "Web Practice";
+    document.getElementById("display-difficulty").textContent = "PRACTICE";
+    document.getElementById("display-subject").textContent = "Code Runner";
+    document.getElementById("display-year").textContent = "Practice";
+    document.getElementById("display-semester").textContent = "Local Draft";
+    document.getElementById("problem-description").textContent = currentProblem.description;
+    document.getElementById("input-format").textContent = "Live HTML/CSS/JS editing";
+    document.getElementById("output-format").textContent = "Preview updates when you refresh.";
+    document.getElementById("constraints-list").innerHTML = "<li>Practice mode does not send work for teacher review.</li><li>Save Draft stores your workspace only in this browser.</li>";
+
+    if (webEditor) {
+      const draft = loadPracticeWebDraft();
+      webEditor.setValue(draft?.sourceCode || getDefaultWebTemplate("Web Practice"));
+      renderPreview();
+    }
+
+    setAnswerBanner("");
+    setCommentStatus("Practice mode is active. Save Draft stores your web code locally.");
+    setStatus("Web practice mode ready.");
+    return;
+  }
 
   if (!problemId) {
     if (problemStatement) problemStatement.style.display = "none";

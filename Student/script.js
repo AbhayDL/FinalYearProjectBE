@@ -81,6 +81,9 @@ const languageSelect = document.getElementById("language-select");
 const outputContent = document.getElementById("output-content");
 const statusText = document.getElementById("status-text");
 const submitBtn = document.getElementById("submit-btn");
+const pageParams = new URLSearchParams(window.location.search);
+const isPracticeMode = pageParams.get("mode") === "practice";
+const PRACTICE_PROBLEM_ID = "__practice_programming__";
 
 let currentProblem = null;
 let currentLanguageId = null;
@@ -97,6 +100,10 @@ function setSubmitEnabled(enabled, message) {
 
 function markSubmissionDirty(message) {
   if (!currentProblem) return;
+  if (isPracticeMode) {
+    if (message) statusText.textContent = message;
+    return;
+  }
   const visibleCount = (currentProblem.testCases || []).length;
   if (visibleCount > 0) {
     setSubmitEnabled(false, message || "Run visible test cases to enable submission.");
@@ -106,6 +113,90 @@ function markSubmissionDirty(message) {
 function setCommentStatus(message) {
   const status = document.getElementById("comment-status");
   if (status) status.textContent = message || "";
+}
+
+function getProgrammingPracticeTemplate() {
+  return `// Practice mode
+// Write code, run it with custom input, and save a local draft.
+
+print("Hello from practice mode")
+`;
+}
+
+function getPracticeDraftStorageKey() {
+  return "student_programming_practice_draft";
+}
+
+function savePracticeDraft() {
+  if (!window.editor) return;
+  const payload = {
+    sourceCode: window.editor.getValue(),
+    languageId: currentLanguageId || "",
+    savedAt: new Date().toISOString()
+  };
+  localStorage.setItem(getPracticeDraftStorageKey(), JSON.stringify(payload));
+  setCommentStatus(`Practice draft saved locally at ${new Date(payload.savedAt).toLocaleTimeString()}.`);
+}
+
+function loadPracticeDraft() {
+  try {
+    const raw = localStorage.getItem(getPracticeDraftStorageKey());
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function setupProgrammingPracticeMode() {
+  currentProblem = {
+    _id: PRACTICE_PROBLEM_ID,
+    title: "Programming Practice",
+    description: "Use this practice space to test ideas, run code with custom input, and save a local draft without affecting any assignment submission.",
+    inputFormat: "Use the custom STDIN box for your own test input.",
+    outputFormat: "Console output from your program.",
+    constraints: "Practice mode is not linked to a teacher-assigned problem.",
+    testCases: []
+  };
+
+  const listSection = document.getElementById("problem-list-section");
+  const stmtSection = document.querySelector(".problem-statement");
+  const runAllBtn = document.getElementById("run-all-btn");
+  const testCasesPanel = document.querySelector(".test-cases-panel");
+  const queryRow = document.querySelector(".query-toggle-row");
+  const saveBtn = document.getElementById("save-btn");
+
+  if (listSection) listSection.style.display = "none";
+  if (stmtSection) stmtSection.style.display = "block";
+  if (runAllBtn) runAllBtn.style.display = "none";
+  if (testCasesPanel) testCasesPanel.style.display = "none";
+  if (queryRow) queryRow.style.display = "none";
+  if (submitBtn) submitBtn.style.display = "none";
+  if (saveBtn) saveBtn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save Draft';
+
+  document.getElementById("problem-title").textContent = "Programming Practice";
+  document.getElementById("display-difficulty").textContent = "PRACTICE";
+  document.getElementById("display-difficulty").className = "tag tag-difficulty";
+  document.getElementById("display-subject").textContent = "Code Runner";
+  document.getElementById("display-year").textContent = "Practice";
+  document.getElementById("display-semester").textContent = "Local Draft";
+  document.getElementById("problem-description").textContent = currentProblem.description;
+  document.getElementById("input-format").textContent = currentProblem.inputFormat;
+  document.getElementById("output-format").textContent = currentProblem.outputFormat;
+  document.getElementById("constraints-list").innerHTML = "<li>Runs code without submitting to the teacher.</li><li>Save Draft stores your work only in this browser.</li>";
+
+  if (window.editor) {
+    const practiceDraft = loadPracticeDraft();
+    window.editor.setValue(practiceDraft?.sourceCode || getProgrammingPracticeTemplate());
+    if (practiceDraft?.languageId && languageSelect) {
+      currentLanguageId = String(practiceDraft.languageId);
+      languageSelect.value = String(practiceDraft.languageId);
+    }
+  }
+
+  setSubmitEnabled(false);
+  setCommentStatus("Practice mode is active. Save Draft stores code locally in your browser.");
+  setQueryAnsweredBanner("");
+  statusText.textContent = "Practice mode ready. Choose a language and run your code.";
 }
 
 function setQueryAnsweredBanner(message) {
@@ -249,6 +340,10 @@ function getDraftStorageKey(problemId) {
 }
 
 function saveDraftLocally() {
+  if (isPracticeMode) {
+    savePracticeDraft();
+    return;
+  }
   if (!currentProblem?._id || !window.editor) return;
   const payload = {
     sourceCode: window.editor.getValue(),
@@ -281,6 +376,11 @@ function clearLocalDraft(problemId) {
 }
 
 async function loadSavedSubmission() {
+  if (isPracticeMode) {
+    setQueryAnsweredBanner("");
+    setCommentStatus("Practice mode is active. Save Draft stores code locally in your browser.");
+    return;
+  }
   if (!currentProblem?._id) {
     setCommentStatus("Load a problem, write your query in code comments, then save.");
     setQueryAnsweredBanner("");
@@ -370,6 +470,10 @@ async function loadSavedSubmission() {
 }
 
 async function saveCode() {
+  if (isPracticeMode) {
+    savePracticeDraft();
+    return;
+  }
   if (isSavingCode || !currentProblem?._id) return;
 
   const button = document.getElementById("save-btn");
@@ -703,11 +807,14 @@ function normalizeSemesterValue(value) {
 
 async function loadProblem() {
   try {
-    // Get problem_id from URL parameter
-    const urlParams = new URLSearchParams(window.location.search);
-    const problemId = urlParams.get("problem_id");
+    const problemId = pageParams.get("problem_id");
     const listSection = document.getElementById("problem-list-section");
     const stmtSection = document.querySelector(".problem-statement");
+
+    if (isPracticeMode) {
+      setupProgrammingPracticeMode();
+      return;
+    }
 
     if (!problemId) {
       if (stmtSection) stmtSection.style.display = "none";

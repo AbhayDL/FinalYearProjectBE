@@ -67,13 +67,27 @@ function escapeHtml(text) {
 function updateSidebarWelcome(user) {
   const title = document.getElementById("sidebar-welcome-title");
   const subtitle = document.getElementById("sidebar-welcome-subtitle");
+  const academics = document.getElementById("sidebar-welcome-academics");
+  const avatar = document.getElementById("sidebar-avatar");
   if (!title) return;
 
   const studentName = user?.name || "Student";
   title.textContent = studentName;
+  if (avatar) {
+    avatar.textContent = String(studentName).trim().charAt(0).toUpperCase() || "S";
+  }
 
   if (subtitle) {
     subtitle.textContent = user?.email || "";
+  }
+
+  if (academics) {
+    const academicParts = [
+      user?.department || user?.branch || "Department",
+      user?.year || "Year",
+      user?.semester || "Semester"
+    ];
+    academics.textContent = academicParts.join(" | ");
   }
 }
 
@@ -281,6 +295,11 @@ function solveProblem(problemId, language = "") {
   window.location.href = `${targetPage}?problem_id=${problemId}`;
 }
 
+function openPracticeRunner(type = "programming") {
+  const targetPage = type === "web" ? "web-ide.html" : "submission-ide.html";
+  window.location.href = `${targetPage}?mode=practice`;
+}
+
 async function fetchProblemsForYearSemester(year, semester) {
   const yearOptions = buildYearVariants(year);
   const semOptions = buildSemesterVariants(semester);
@@ -464,7 +483,9 @@ async function loadSubmissions() {
         const submission = latestSubmissionByProblem.get(problem._id);
         const status = submission?.status || "pending";
         return {
+          _id: problem._id,
           title: problem.title || "Problem",
+          language: String(problem.language || ""),
           status,
           queryStatus: submission?.queryStatus || "none",
           teacherOverrideStatus: submission?.teacherOverrideStatus || "none",
@@ -506,6 +527,7 @@ async function loadSubmissions() {
               <div class="subject-task-status">
                 <span class="status ${mapSubmissionStatus(task.status, task.queryStatus, task.teacherOverrideStatus)}">${formatSubmissionStatus(task.status, task.queryStatus, task.teacherOverrideStatus)}</span>
                 <span class="task-score">Score: ${task.score}</span>
+                <button class="btn-secondary" onclick="solveProblem('${task._id}', '${task.language}')">Solve</button>
               </div>
             </div>
           `).join("")}
@@ -687,6 +709,8 @@ function showSection(sectionName, event) {
       break;
     case "submissions":
       loadSubmissions();
+      break;
+    case "code-runner":
       break;
   }
 }
