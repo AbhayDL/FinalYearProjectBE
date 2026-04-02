@@ -8,168 +8,222 @@
 </head>
 <body>
   <div class="navbar">
-    <button class="back-btn" onclick="goBack()">← Back to Dashboard</button>
+    <button class="back-btn" onclick="goBack()">&larr; Back to Dashboard</button>
   </div>
 
   <div class="container">
-    
     <div class="header">
-      <h1>Upload Programming Problem</h1>
-      <p>Create and configure your coding challenge</p>
+      <h1 id="pageTitle">Upload Programming Problem</h1>
+      <p id="pageSubtitle">Create and configure your coding challenge</p>
     </div>
 
     <div class="form-card">
       <div id="problemForm">
-        <!-- Problem Title -->
-        <div class="form-group">
-          <label for="problemTitle">Problem Title</label>
-          <input type="text" id="problemTitle" name="problemTitle" class="input" placeholder="Enter a descriptive title..." />
-        </div>
-
-        <!-- Problem Description -->
-        <div class="form-group">
-          <label for="problemDescription">Problem Description</label>
-          <textarea id="problemDescription" name="problemDescription" class="textarea" rows="5" placeholder="Provide detailed problem statement..."></textarea>
-        </div>
-
-        <!-- Input and Output Format -->
-        <div class="io-row">
-          <div class="form-group">
-            <label for="inputFormat">Input Format</label>
-            <textarea id="inputFormat" name="inputFormat" class="textarea" rows="3" placeholder="Describe the input format..."></textarea>
+        <section class="form-section form-section-primary">
+          <div class="section-heading">
+            <h2>1. Audience & Subject</h2>
+            <p>Select the assigned subject first so year and semester are filled correctly.</p>
           </div>
 
-          <div class="form-group">
-            <label for="outputFormat">Output Format</label>
-            <textarea id="outputFormat" name="outputFormat" class="textarea" rows="3" placeholder="Describe the output format..."></textarea>
-          </div>
-        </div>
-
-        <!-- Constraints -->
-        <div class="form-group">
-          <label for="constraints">Constraints</label>
-          <input type="text" id="constraints" name="constraints" class="input" placeholder="e.g., 1 ≤ N ≤ 1000" />
-        </div>
-
-        <div class="form-group gui-review-toggle">
-          <label class="checkbox-label">
-            <input type="checkbox" id="guiReviewRequired" />
-            <span>This problem has GUI / graph / ML visual output and should go directly to teacher review</span>
-          </label>
-          <p class="hint" id="guiReviewHint"></p>
-        </div>
-
-        <!-- Metadata Grid -->
-        <div class="grid grid-cols-3">
-          <div class="form-group">
-            <label for="year">Year</label>
-            <select id="year" name="year" class="select">
-              <option value="">Select Year</option>
-              <option value="1st">1st Year</option>
-              <option value="2nd">2nd Year</option>
-              <option value="3rd">3rd Year</option>
-              <option value="4th">4th Year</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="semester">Semester</label>
-            <select id="semester" name="semester" class="select">
-              <option value="">Select Semester</option>
-              <option value="Sem 1">Sem 1</option>
-              <option value="Sem 2">Sem 2</option>
-              <option value="Sem 3">Sem 3</option>
-              <option value="Sem 4">Sem 4</option>
-              <option value="Sem 5">Sem 5</option>
-              <option value="Sem 6">Sem 6</option>
-              <option value="Sem 7">Sem 7</option>
-              <option value="Sem 8">Sem 8</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="subject">Subject</label>
-            <select id="subject" name="subject" class="select">
-              <option value="">Loading subjects...</option>
-            </select>
-            <p class="hint" id="subjectHint"></p>
-          </div>
-
-          <div class="form-group">
-            <label for="difficulty">Difficulty</label>
-            <select id="difficulty" name="difficulty" class="select">
-              <option value="">Select Difficulty</option>
-              <option value="Easy">Easy</option>
-              <option value="Medium">Medium</option>
-              <option value="Hard">Hard</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="language">Programming Language</label>
-            <select id="language" name="language" class="select">
-              <option value="">Select Language</option>
-              <option value="54">C++ (GCC 9.2.0)</option>
-              <option value="50">C (GCC 9.2.0)</option>
-              <option value="62">Java (OpenJDK 13.0.1)</option>
-              <option value="71">Python (3.8.1)</option>
-              <option value="63">JavaScript (Node.js 12.14.0)</option>
-              <option value="51">C# (Mono 6.6.0.161)</option>
-              <option value="68">PHP (7.4.1)</option>
-              <option value="72">Ruby (2.7.0)</option>
-              <option value="73">Rust (1.40.0)</option>
-              <option value="74">TypeScript (3.7.4)</option>
-              <option value="60">Go (1.13.5)</option>
-              <option value="78">Kotlin (1.3.70)</option>
-              <option value="82">SQL (SQLite 3.27.2)</option>
-            </select>
-            <p class="hint" id="languageHint"></p>
-          </div>
-          
-          <div class="form-group">
-            <label for="status">Problem Status</label>
-            <select id="status" class="select">
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-              <option value="archived">Archived</option>
-            </select>
-          </div>
-          
-        </div>
-
-        <div id="guiReviewFields" class="gui-review-fields" style="display:none;">
           <div class="grid grid-cols-3">
+            <div class="form-group form-group-wide">
+              <label for="subject">Subject</label>
+              <select id="subject" name="subject" class="select">
+                <option value="">Loading subjects...</option>
+              </select>
+              <p class="hint" id="subjectHint"></p>
+            </div>
+
             <div class="form-group">
-              <label for="guiProblemType">GUI Problem Type</label>
-              <select id="guiProblemType" class="select">
-                <option value="html">HTML / Web UI</option>
-                <option value="python_graph">Python Graph</option>
-                <option value="ml_visual">ML Visual Output</option>
-                <option value="gui_other">Other GUI Output</option>
+              <label for="year">Year</label>
+              <select id="year" name="year" class="select">
+                <option value="">Select Year</option>
+                <option value="1st">1st Year</option>
+                <option value="2nd">2nd Year</option>
+                <option value="3rd">3rd Year</option>
+                <option value="4th">4th Year</option>
               </select>
             </div>
 
-            <div class="form-group" style="grid-column: span 2;">
-              <label for="allowedLibraries">Allowed Libraries</label>
-              <input type="text" id="allowedLibraries" class="input" placeholder="Example: numpy, pandas, matplotlib, seaborn" />
+            <div class="form-group">
+              <label for="semester">Semester</label>
+              <select id="semester" name="semester" class="select">
+                <option value="">Select Semester</option>
+                <option value="Sem 1">Sem 1</option>
+                <option value="Sem 2">Sem 2</option>
+                <option value="Sem 3">Sem 3</option>
+                <option value="Sem 4">Sem 4</option>
+                <option value="Sem 5">Sem 5</option>
+                <option value="Sem 6">Sem 6</option>
+                <option value="Sem 7">Sem 7</option>
+                <option value="Sem 8">Sem 8</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="subjectSummaryCard" class="subject-summary-card" style="display:none;">
+            <div class="summary-chip"><span>Subject</span><strong id="summarySubject">-</strong></div>
+            <div class="summary-chip"><span>Department</span><strong id="summaryDepartment">-</strong></div>
+            <div class="summary-chip"><span>Year</span><strong id="summaryYear">-</strong></div>
+            <div class="summary-chip"><span>Semester</span><strong id="summarySemester">-</strong></div>
+          </div>
+        </section>
+
+        <section class="form-section validation-section">
+          <div class="section-heading">
+            <h2>2. Validation Summary</h2>
+            <p>Check the required items before saving the problem.</p>
+          </div>
+          <div id="validationSummary" class="validation-summary-list"></div>
+        </section>
+
+        <section class="form-section">
+          <div class="section-heading">
+            <h2>3. Problem Basics</h2>
+            <p>Define the statement, expected input/output, and constraints.</p>
+          </div>
+
+          <div class="form-group">
+            <label for="problemTitle">Problem Title</label>
+            <input type="text" id="problemTitle" name="problemTitle" class="input" placeholder="Enter a descriptive title..." />
+          </div>
+
+          <div class="form-group">
+            <label for="problemDescription">Problem Description</label>
+            <textarea id="problemDescription" name="problemDescription" class="textarea" rows="5" placeholder="Provide detailed problem statement..."></textarea>
+          </div>
+
+          <div class="io-row">
+            <div class="form-group">
+              <label for="inputFormat">Input Format</label>
+              <textarea id="inputFormat" name="inputFormat" class="textarea" rows="3" placeholder="Describe the input format..."></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="outputFormat">Output Format</label>
+              <textarea id="outputFormat" name="outputFormat" class="textarea" rows="3" placeholder="Describe the output format..."></textarea>
             </div>
           </div>
 
           <div class="form-group">
-            <label for="teacherVerificationChecklist">Teacher Verification Checklist</label>
-            <textarea id="teacherVerificationChecklist" class="textarea" rows="5" placeholder="One check per line. Example:&#10;Chart title is visible&#10;Axes labels are correct&#10;Layout is responsive"></textarea>
+            <label for="constraints">Constraints</label>
+            <input type="text" id="constraints" name="constraints" class="input" placeholder="e.g., 1 <= N <= 1000" />
           </div>
-        </div>
+        </section>
 
-        <!-- Test Cases Section -->
-        <div id="testCasesSection">
-          <h2 class="test-cases-header">Test Cases</h2>
+        <section class="form-section">
+          <div class="section-heading">
+            <h2>4. Execution Setup</h2>
+            <p>Choose the language, difficulty, and whether this needs direct teacher review.</p>
+          </div>
+
+          <div class="form-group gui-review-toggle">
+            <div class="mode-toggle-card">
+              <div class="mode-toggle-copy">
+                <label for="guiReviewRequired">Evaluation Mode</label>
+                <p>Choose whether this problem should be auto-checked with test cases or reviewed by the teacher for visual output.</p>
+              </div>
+              <label class="mode-switch-group" for="guiReviewRequired">
+                <span class="mode-text mode-text-standard">
+                  <strong>Command Line</strong>
+                </span>
+                <span class="mode-switch">
+                  <input type="checkbox" id="guiReviewRequired" />
+                  <span class="mode-switch-track" aria-hidden="true"></span>
+                  <span class="mode-switch-thumb" aria-hidden="true"></span>
+                </span>
+                <span class="mode-text mode-text-visual">
+                  <strong>GUI</strong>
+                </span>
+              </label>
+            </div>
+            <p class="hint" id="guiReviewHint"></p>
+          </div>
+
+          <div class="grid grid-cols-3">
+            <div class="form-group">
+              <label for="difficulty">Difficulty</label>
+              <select id="difficulty" name="difficulty" class="select">
+                <option value="">Select Difficulty</option>
+                <option value="Easy">Easy</option>
+                <option value="Medium">Medium</option>
+                <option value="Hard">Hard</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="language">Programming Language</label>
+              <select id="language" name="language" class="select">
+                <option value="">Select Language</option>
+                <option value="54">C++ (GCC 9.2.0)</option>
+                <option value="50">C (GCC 9.2.0)</option>
+                <option value="62">Java (OpenJDK 13.0.1)</option>
+                <option value="71">Python (3.8.1)</option>
+                <option value="63">JavaScript (Node.js 12.14.0)</option>
+                <option value="51">C# (Mono 6.6.0.161)</option>
+                <option value="68">PHP (7.4.1)</option>
+                <option value="72">Ruby (2.7.0)</option>
+                <option value="73">Rust (1.40.0)</option>
+                <option value="74">TypeScript (3.7.4)</option>
+                <option value="60">Go (1.13.5)</option>
+                <option value="78">Kotlin (1.3.70)</option>
+                <option value="82">SQL (SQLite 3.27.2)</option>
+              </select>
+              <p class="hint" id="languageHint"></p>
+            </div>
+
+            <div class="form-group">
+              <label for="status">Problem Status</label>
+              <select id="status" class="select">
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="guiReviewFields" class="gui-review-fields" style="display:none;">
+            <div class="grid grid-cols-3">
+              <div class="form-group">
+                <label for="guiProblemType">GUI Problem Type</label>
+                <select id="guiProblemType" class="select">
+                  <option value="html">HTML / Web UI</option>
+                  <option value="python_graph">Python Graph</option>
+                  <option value="ml_visual">ML Visual Output</option>
+                  <option value="gui_other">Other GUI Output</option>
+                </select>
+              </div>
+
+              <div class="form-group form-group-span-2">
+                <label for="allowedLibraries">Allowed Libraries</label>
+                <input type="text" id="allowedLibraries" class="input" placeholder="Example: numpy, pandas, matplotlib, seaborn" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="teacherVerificationChecklist">Teacher Verification Checklist</label>
+              <textarea id="teacherVerificationChecklist" class="textarea" rows="5" placeholder="One check per line. Example:&#10;Chart title is visible&#10;Axes labels are correct&#10;Layout is responsive"></textarea>
+            </div>
+          </div>
+        </section>
+
+        <section id="testCasesSection" class="form-section">
+          <div class="section-heading">
+            <h2 class="test-cases-header">5. Test Cases</h2>
+            <p>Add visible or hidden evaluation cases for standard coding problems.</p>
+          </div>
           <div id="testCasesList" class="test-case-list"></div>
 
           <button type="button" class="btn btn-add" onclick="addTestCase()">+ Add Test Case</button>
-        </div>
+        </section>
 
-        <button type="button" class="btn btn-submit" onclick="handleSubmit()">Submit Problem</button>
+        <div class="submit-panel">
+          <div>
+            <strong id="submitHeading">Ready to save?</strong>
+            <p id="submitMeta">Finish the required fields and then save the problem.</p>
+          </div>
+          <button type="button" class="btn btn-submit" id="submitProblemBtn" onclick="handleSubmit()">Submit Problem</button>
+        </div>
       </div>
     </div>
   </div>

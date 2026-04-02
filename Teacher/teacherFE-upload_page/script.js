@@ -21,6 +21,13 @@ const guiReviewFields = document.getElementById('guiReviewFields');
 const guiProblemTypeSelect = document.getElementById('guiProblemType');
 const allowedLibrariesInput = document.getElementById('allowedLibraries');
 const teacherChecklistInput = document.getElementById('teacherVerificationChecklist');
+const validationSummary = document.getElementById('validationSummary');
+const subjectSummaryCard = document.getElementById('subjectSummaryCard');
+const pageTitle = document.getElementById('pageTitle');
+const pageSubtitle = document.getElementById('pageSubtitle');
+const submitHeading = document.getElementById('submitHeading');
+const submitMeta = document.getElementById('submitMeta');
+const submitBtn = document.getElementById('submitProblemBtn');
 let assignedSubjects = [];
 let assignedSubjectIds = new Set();
 
@@ -37,6 +44,8 @@ renderTestCases();
 const subjectsReady = loadAssignedSubjects();
 const languagesReady = loadExecutorLanguages();
 
+const requiredFieldIds = ['problemTitle', 'problemDescription', 'subject', 'difficulty', 'language'];
+
 function escapeHtml(text) {
   return String(text || '')
     .replace(/&/g, '&amp;')
@@ -50,6 +59,74 @@ function setSubjectHint(message, isError) {
   if (!subjectHint) return;
   subjectHint.textContent = message || '';
   subjectHint.classList.toggle('error', Boolean(isError));
+}
+
+function setSubmitButtonState() {
+  if (!submitBtn) return;
+  submitBtn.textContent = isEditMode ? 'Update Problem' : 'Submit Problem';
+  if (submitHeading) {
+    submitHeading.textContent = isEditMode ? 'Ready to update?' : 'Ready to save?';
+  }
+  if (submitMeta) {
+    submitMeta.textContent = isEditMode
+      ? 'Review the changes and update the existing problem.'
+      : 'Finish the required fields and then save the problem.';
+  }
+  if (pageTitle) {
+    pageTitle.textContent = isEditMode ? 'Update Programming Problem' : 'Upload Programming Problem';
+  }
+  if (pageSubtitle) {
+    pageSubtitle.textContent = isEditMode
+      ? 'Refine and update your existing coding challenge'
+      : 'Create and configure your coding challenge';
+  }
+}
+
+function getSelectedSubject() {
+  const subjectId = subjectSelect ? subjectSelect.value : '';
+  return assignedSubjects.find((item) => String(item._id) === String(subjectId)) || null;
+}
+
+function updateSubjectSummaryCard() {
+  if (!subjectSummaryCard) return;
+  const selectedSubject = getSelectedSubject();
+  if (!selectedSubject) {
+    subjectSummaryCard.style.display = 'none';
+    return;
+  }
+
+  document.getElementById('summarySubject').textContent = selectedSubject.name || '-';
+  document.getElementById('summaryDepartment').textContent = selectedSubject.department || 'Not set';
+  document.getElementById('summaryYear').textContent = selectedSubject.year || yearSelect?.value || '-';
+  document.getElementById('summarySemester').textContent = selectedSubject.semester || semesterSelect?.value || '-';
+  subjectSummaryCard.style.display = 'grid';
+}
+
+function getValidationItems() {
+  const selectedSubject = getSelectedSubject();
+  const languageValue = languageSelect?.value || '';
+  const isGuiMode = isGuiReviewProblem();
+  const hasValidTestCases = isGuiMode || testCases.every((testCase) => testCase.input.trim() && testCase.output.trim());
+
+  return [
+    { label: 'Subject selected', complete: Boolean(selectedSubject) },
+    { label: 'Problem title added', complete: Boolean(document.getElementById('problemTitle')?.value.trim()) },
+    { label: 'Problem description added', complete: Boolean(document.getElementById('problemDescription')?.value.trim()) },
+    { label: 'Difficulty selected', complete: Boolean(document.getElementById('difficulty')?.value) },
+    { label: 'Language selected', complete: Boolean(languageValue) },
+    { label: isGuiMode ? 'Teacher review setup ready' : 'At least one complete test case', complete: hasValidTestCases }
+  ];
+}
+
+function updateValidationSummary() {
+  if (!validationSummary) return;
+  const items = getValidationItems();
+  validationSummary.innerHTML = items.map((item) => `
+    <div class="validation-item ${item.complete ? 'complete' : 'pending'}">
+      <span class="validation-dot">${item.complete ? 'OK' : 'TODO'}</span>
+      <span>${escapeHtml(item.label)}</span>
+    </div>
+  `).join('');
 }
 
 function setSelectValue(selectEl, value) {
@@ -113,10 +190,14 @@ function updateLanguageMode() {
 
   if (guiReviewHint) {
     guiReviewHint.textContent = guiMode
-      ? 'Students will submit this problem directly to teacher review. Add allowed libraries and a teacher checklist below.'
-      : '';
+      ? (webMode
+        ? 'Web problems open in the Web IDE and go directly to teacher review.'
+        : 'Visual output / GUI problems open in the submission editor and go directly to teacher review.')
+      : 'Command-line problems stay in the standard editor and are checked with test cases.';
     guiReviewHint.classList.toggle('error', false);
   }
+
+  updateValidationSummary();
 }
 
 async function fetchWithExecutor(path) {
@@ -211,6 +292,8 @@ function applySubjectMeta(subjectName, options = {}) {
   if (force || (!semesterSelect || !semesterSelect.value)) {
     setSelectValue(semesterSelect, subject.semester || '');
   }
+  updateSubjectSummaryCard();
+  updateValidationSummary();
 }
 
 function getTeacherToken() {
@@ -227,6 +310,8 @@ function applySubjectSelection(subjectValue) {
   if (!subjectValue) {
     subjectSelect.value = '';
     updateYearSemesterLock('');
+    updateSubjectSummaryCard();
+    updateValidationSummary();
     return;
   }
   const knownSubject = assignedSubjects.find((subject) => String(subject._id) === String(subjectValue) || subject.name === subjectValue);
@@ -234,6 +319,8 @@ function applySubjectSelection(subjectValue) {
     subjectSelect.value = String(knownSubject._id);
     setSubjectHint('', false);
     updateYearSemesterLock(String(knownSubject._id));
+    updateSubjectSummaryCard();
+    updateValidationSummary();
     return;
   }
   const option = document.createElement('option');
@@ -244,6 +331,8 @@ function applySubjectSelection(subjectValue) {
   subjectSelect.prepend(option);
   setSubjectHint('This subject is not assigned to you. Contact the admin.', true);
   updateYearSemesterLock(subjectValue);
+  updateSubjectSummaryCard();
+  updateValidationSummary();
 }
 
 async function loadAssignedSubjects() {
@@ -282,8 +371,12 @@ async function loadAssignedSubjects() {
     subjectSelect.onchange = () => {
       applySubjectMeta(subjectSelect.value, { force: true });
       updateYearSemesterLock(subjectSelect.value);
+      updateSubjectSummaryCard();
+      updateValidationSummary();
     };
     updateYearSemesterLock(subjectSelect.value);
+    updateSubjectSummaryCard();
+    updateValidationSummary();
     return assignedSubjects;
   } catch (err) {
     subjectSelect.innerHTML = '<option value="">Unable to load subjects</option>';
@@ -334,8 +427,9 @@ if (editId) {
           renderTestCases();
         }
 
-        const submitBtn = document.querySelector('.btn-submit');
-        if (submitBtn) submitBtn.innerText = 'Update Problem';
+        setSubmitButtonState();
+        updateSubjectSummaryCard();
+        updateValidationSummary();
       })
       .catch(err => {
         console.error('Failed to load problem for editing', err);
@@ -409,6 +503,8 @@ function renderTestCases() {
     
     container.appendChild(card);
   }
+
+  updateValidationSummary();
 }
 
 function addTestCase() {
@@ -435,7 +531,7 @@ function handleSubmit() {
   const description = document.getElementById('problemDescription').value.trim();
   const language = document.getElementById('language').value;
   const subjectId = subjectSelect ? subjectSelect.value : '';
-  const selectedSubject = assignedSubjects.find((item) => String(item._id) === String(subjectId));
+  const selectedSubject = getSelectedSubject();
 
   if (!title || !description || !language) {
     alert("Title, Description, and Language are required");
@@ -482,9 +578,10 @@ function handleSubmit() {
   const teacherEmail = localStorage.getItem('teacherEmail');
   if (teacherEmail) formData.createdBy = teacherEmail;
 
-  const submitBtn = document.querySelector(".btn-submit");
-  submitBtn.disabled = true;
-  submitBtn.innerText = "Submitting...";
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerText = isEditMode ? "Updating..." : "Submitting...";
+  }
 
   const endpoint = isEditMode
     ? `${API_BASE}/api/problems/${encodeURIComponent(editId)}`
@@ -503,13 +600,38 @@ function handleSubmit() {
   .then(data => {
     alert(isEditMode ? "Problem updated successfully!" : "Problem uploaded successfully!");
     console.log("Saved in DB:", data);
-    submitBtn.disabled = false;
-    submitBtn.innerText = "Submit Problem";
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      setSubmitButtonState();
+    }
   })
   .catch(err => {
     console.error("Error:", err);
     alert("Failed to upload problem");
-    submitBtn.disabled = false;
-    submitBtn.innerText = "Submit Problem";
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      setSubmitButtonState();
+    }
   });
 }
+
+function bindValidationListeners() {
+  requiredFieldIds.forEach((fieldId) => {
+    const element = document.getElementById(fieldId);
+    if (!element) return;
+    element.addEventListener('input', updateValidationSummary);
+    element.addEventListener('change', updateValidationSummary);
+  });
+
+  ['inputFormat', 'outputFormat', 'constraints', 'status', 'guiProblemType', 'allowedLibraries', 'teacherVerificationChecklist'].forEach((fieldId) => {
+    const element = document.getElementById(fieldId);
+    if (!element) return;
+    element.addEventListener('input', updateValidationSummary);
+    element.addEventListener('change', updateValidationSummary);
+  });
+}
+
+setSubmitButtonState();
+bindValidationListeners();
+updateSubjectSummaryCard();
+updateValidationSummary();

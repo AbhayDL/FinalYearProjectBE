@@ -106,6 +106,15 @@ function getProblemSubject(session) {
 }
 
 function updateSummary() {
+  const totalStudentsEl = document.getElementById("totalStudents");
+  const totalProblemsEl = document.getElementById("totalProblems");
+  const activeSessionsEl = document.getElementById("activeSessions");
+  const totalSnapshotsEl = document.getElementById("totalSnapshots");
+
+  if (!totalStudentsEl || !totalProblemsEl || !activeSessionsEl || !totalSnapshotsEl) {
+    return;
+  }
+
   const students = buildStudentGroups();
   const problemKeys = new Set();
   let activeSessions = 0;
@@ -118,10 +127,10 @@ function updateSummary() {
     totalSnapshots += Number(session.countsByType?.snapshot_captured || 0);
   });
 
-  document.getElementById("totalStudents").textContent = students.length;
-  document.getElementById("totalProblems").textContent = problemKeys.size;
-  document.getElementById("activeSessions").textContent = activeSessions;
-  document.getElementById("totalSnapshots").textContent = totalSnapshots;
+  totalStudentsEl.textContent = students.length;
+  totalProblemsEl.textContent = problemKeys.size;
+  activeSessionsEl.textContent = activeSessions;
+  totalSnapshotsEl.textContent = totalSnapshots;
 }
 
 function buildStudentGroups() {
