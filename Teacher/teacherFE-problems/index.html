@@ -4,42 +4,96 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Problems - Teacher</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="navbar">
-    <button class="back-btn" onclick="goBack()">&lt;- Back to Dashboard</button>
-  </div>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2 id="sidebar-welcome-title"><i class="fas fa-chalkboard-user"></i> Welcome, Teacher</h2>
+        <p id="sidebar-welcome-subtitle">Plan, publish, and track classroom coding work.</p>
+      </div>
+      <ul class="sidebar-nav">
+        <li class="nav-item">
+          <a href="../teacherFE-dashboard/index.html">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+          </a>
+        </li>
+        <li class="nav-item active">
+          <a href="index.html">
+            <i class="fas fa-code"></i> Problems
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="../teacherFE-upload_page/index.html">
+            <i class="fas fa-upload"></i> Upload Problem
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="../teacherFE-dashboard/task-completion.html">
+            <i class="fas fa-clipboard-check"></i> Task Completion
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="../teacherFE-students/index.html">
+            <i class="fas fa-users"></i> Manage Students
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="../teacherFE-monitoring/index.html">
+            <i class="fas fa-shield-halved"></i> Monitoring
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="../teacherFE-dashboard/index.html?section=settings">
+            <i class="fas fa-cog"></i> Settings
+          </a>
+        </li>
+      </ul>
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="handleLogout()">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+      </div>
+    </aside>
 
-  <div class="container">
-    <header class="page-header">
-      <div>
-        <h1>My Problems</h1>
-        <p class="muted">Manage problems you created - view, edit or delete</p>
+    <main class="page-shell">
+      <div class="navbar">
+        <button class="back-btn" onclick="goBack()">&lt;- Back to Dashboard</button>
       </div>
-      <div class="header-actions">
-        <span class="teacher-badge" id="teacherBadge">Teacher</span>
-        <button class="create-btn" onclick="location.href='../teacherFE-upload_page/index.html'">+ Create Problem</button>
-      </div>
-    </header>
 
-    <section class="subjects-layout">
-      <div class="subjects-panel">
-        <h2>Subjects</h2>
-        <div id="subjectsList" class="subjects-list">
-          <p>Loading subjects...</p>
-        </div>
+      <div class="container">
+        <header class="page-header">
+          <div>
+            <h1>My Problems</h1>
+            <p class="muted">Manage problems you created - view, edit or delete</p>
+          </div>
+          <div class="header-actions">
+            <span class="teacher-badge" id="teacherBadge">Teacher</span>
+            <button class="create-btn" onclick="location.href='../teacherFE-upload_page/index.html'">+ Create Problem</button>
+          </div>
+        </header>
+
+        <section class="subjects-layout">
+          <div class="subjects-panel">
+            <h2>Subjects</h2>
+            <div id="subjectsList" class="subjects-list">
+              <p>Loading subjects...</p>
+            </div>
+          </div>
+          <div class="tasks-panel">
+            <div class="tasks-header">
+              <h2 id="tasksTitle">Tasks</h2>
+              <p id="tasksHint" class="muted small">Select a subject to see tasks.</p>
+            </div>
+            <div id="problemsList" class="problems-grid">
+              <p>Select a subject to see tasks.</p>
+            </div>
+          </div>
+        </section>
       </div>
-      <div class="tasks-panel">
-        <div class="tasks-header">
-          <h2 id="tasksTitle">Tasks</h2>
-          <p id="tasksHint" class="muted small">Select a subject to see tasks.</p>
-        </div>
-        <div id="problemsList" class="problems-grid">
-          <p>Select a subject to see tasks.</p>
-        </div>
-      </div>
-    </section>
+    </main>
   </div>
 
   <script src="script.js"></script>

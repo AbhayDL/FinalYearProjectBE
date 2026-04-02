@@ -4,18 +4,73 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Anti-Cheat Monitoring - Teacher</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="navbar">
-    <div class="navbar-inner">
-      <button class="back-btn" onclick="goBack()">Back to Dashboard</button>
-      <div class="navbar-meta">
-        <span class="navbar-label">Teacher Module</span>
-        <strong>Anti-Cheat Monitoring</strong>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2 id="sidebar-welcome-title"><i class="fas fa-chalkboard-user"></i> Welcome, Teacher</h2>
+        <p id="sidebar-welcome-subtitle">Plan, publish, and track classroom coding work.</p>
       </div>
-    </div>
-  </div>
+      <ul class="sidebar-nav">
+        <li class="nav-item">
+          <a href="../teacherFE-dashboard/index.html">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="../teacherFE-problems/index.html">
+            <i class="fas fa-code"></i> Problems
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="../teacherFE-upload_page/index.html">
+            <i class="fas fa-upload"></i> Upload Problem
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="../teacherFE-dashboard/task-completion.html">
+            <i class="fas fa-clipboard-check"></i> Task Completion
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="../teacherFE-students/index.html">
+            <i class="fas fa-users"></i> Manage Students
+          </a>
+        </li>
+        <li class="nav-item active">
+          <a href="index.html">
+            <i class="fas fa-shield-halved"></i> Monitoring
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="../teacherFE-dashboard/index.html?section=settings">
+            <i class="fas fa-cog"></i> Settings
+          </a>
+        </li>
+      </ul>
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="handleLogout()">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+      </div>
+    </aside>
+
+    <main class="page-shell">
+      <div class="navbar">
+        <div class="navbar-inner">
+          <div class="navbar-actions">
+            <button class="back-btn" onclick="goBack()">Back to Dashboard</button>
+            <button class="ghost-btn contextual-btn hidden" id="studentDetailBtn" type="button" onclick="goToStudentDetail()">Back to Student Detail</button>
+          </div>
+          <div class="navbar-meta">
+            <span class="navbar-label">Teacher Module</span>
+            <strong>Anti-Cheat Monitoring</strong>
+          </div>
+        </div>
+      </div>
 
   <div class="container">
     <div class="page-header">
@@ -59,24 +114,24 @@
 
     <section class="summary-grid">
       <div class="summary-card summary-card-accent">
-        <span class="summary-label">Total Sessions</span>
-        <strong id="totalSessions">0</strong>
-        <small>Teacher-visible monitoring records</small>
+        <span class="summary-label">Monitored Students</span>
+        <strong id="totalStudents">0</strong>
+        <small>Students with reviewable monitoring records</small>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Monitored Problems</span>
+        <strong id="totalProblems">0</strong>
+        <small>Problem reviews available across subjects</small>
       </div>
       <div class="summary-card">
         <span class="summary-label">Active Sessions</span>
         <strong id="activeSessions">0</strong>
-        <small>Recent or currently open sessions</small>
+        <small>Sessions still open or recently active</small>
       </div>
       <div class="summary-card">
-        <span class="summary-label">Flagged Sessions</span>
-        <strong id="flaggedSessions">0</strong>
-        <small>Watch or high risk</small>
-      </div>
-      <div class="summary-card">
-        <span class="summary-label">High Risk</span>
-        <strong id="highRiskSessions">0</strong>
-        <small>Needs manual review</small>
+        <span class="summary-label">Captured Snapshots</span>
+        <strong id="totalSnapshots">0</strong>
+        <small>Recorded code snapshots available for review</small>
       </div>
     </section>
 
@@ -85,12 +140,6 @@
         <input type="search" id="searchInput" class="search-input" placeholder="Search by student name or email" />
         <select id="subjectFilter" class="filter-select">
           <option value="all">All Subjects</option>
-        </select>
-        <select id="riskFilter" class="filter-select">
-          <option value="all">All Risk Levels</option>
-          <option value="low">Low</option>
-          <option value="watch">Watch</option>
-          <option value="high">High</option>
         </select>
         <select id="statusFilter" class="filter-select">
           <option value="all">All Session Status</option>
@@ -123,6 +172,7 @@
             <strong id="problemStripTitle">Student Problem Monitoring</strong>
             <p class="muted compact-muted" id="problemStripMeta">Select a student to view monitored problems by subject.</p>
           </div>
+          <div id="selectedStudentMeta" class="selected-student-meta hidden"></div>
         </div>
         <div id="problemList" class="problem-strip empty-state">
           <p>Select a student to see monitored problems.</p>
@@ -155,20 +205,8 @@
             <strong id="playerTabSwitches">0</strong>
           </div>
           <div class="player-stat-card">
-            <span>Paste Events</span>
-            <strong id="playerPasteEvents">0</strong>
-          </div>
-          <div class="player-stat-card">
-            <span>Copy Events</span>
-            <strong id="playerCopyEvents">0</strong>
-          </div>
-          <div class="player-stat-card">
             <span>Window Blur</span>
             <strong id="playerWindowBlur">0</strong>
-          </div>
-          <div class="player-stat-card">
-            <span>Risk Level</span>
-            <strong id="playerRiskLevel">-</strong>
           </div>
         </div>
 
@@ -177,6 +215,8 @@
         </div>
       </aside>
     </section>
+  </div>
+    </main>
   </div>
 
   <script src="script.js"></script>

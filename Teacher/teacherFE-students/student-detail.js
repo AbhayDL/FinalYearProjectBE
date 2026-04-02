@@ -62,6 +62,12 @@ function renderInfoList(containerId, rows) {
 }
 
 function getSubmissionStatusBadge(submission) {
+  if (submission.guiReview?.teacherStatus === "approved") {
+    return '<span class="status-pill answered">Approved</span>';
+  }
+  if (submission.teacherOverrideStatus === "approved") {
+    return '<span class="status-pill answered">Approved</span>';
+  }
   if (submission.status === "passed") {
     return '<span class="status-pill active">Solved</span>';
   }
@@ -75,6 +81,32 @@ function getSubmissionStatusBadge(submission) {
     return '<span class="status-pill query">Query</span>';
   }
   return '<span class="status-pill inactive">Attempted</span>';
+}
+
+function getTeacherResponseLabel(submission) {
+  if (submission.guiReview?.teacherStatus === "approved") {
+    return submission.guiReview?.teacherReviewedAt
+      ? `Approved ${new Date(submission.guiReview.teacherReviewedAt).toLocaleString()}`
+      : "Approved";
+  }
+
+  if (submission.teacherOverrideStatus === "approved") {
+    return submission.teacherAnsweredAt
+      ? `Approved ${new Date(submission.teacherAnsweredAt).toLocaleString()}`
+      : "Approved";
+  }
+
+  if (submission.queryStatus === "answered" || submission.teacherAnsweredAt) {
+    return submission.teacherAnsweredAt
+      ? new Date(submission.teacherAnsweredAt).toLocaleString()
+      : "Answered";
+  }
+
+  if (submission.status === "passed") {
+    return "Passed by test cases";
+  }
+
+  return "Not answered";
 }
 
 function getStudentState(summary = {}, student = {}) {
@@ -149,7 +181,7 @@ function renderSubmissions(submissions) {
         <div class="student-meta">
           <span class="meta-pill">Score: ${submission.score || 0}</span>
           <span class="meta-pill">Tests: ${submission.passedCount || 0}/${submission.totalCount || 0}</span>
-          <span class="meta-pill">Answered: ${submission.teacherAnsweredAt ? new Date(submission.teacherAnsweredAt).toLocaleString() : "Not answered"}</span>
+          <span class="meta-pill">Teacher Review: ${escapeHtml(getTeacherResponseLabel(submission))}</span>
         </div>
         <div class="student-actions">
           ${submission.problem?.id

@@ -9,7 +9,6 @@ const state = {
   selectedProblemKey: "",
   search: "",
   subject: "all",
-  risk: "all",
   status: "all",
   currentFrames: [],
   currentFrameIndex: 0,
@@ -40,6 +39,25 @@ function escapeHtml(text) {
 
 function goBack() {
   window.location.href = "../teacherFE-dashboard/index.html";
+}
+
+function handleLogout() {
+  if (!confirm("Are you sure you want to logout?")) return;
+  localStorage.removeItem("teacherToken");
+  localStorage.removeItem("teacherUser");
+  localStorage.removeItem("teacherEmail");
+  localStorage.removeItem("teacherRememberMe");
+  sessionStorage.clear();
+  window.location.href = TEACHER_LOGIN_URL;
+}
+
+function goToStudentDetail() {
+  const studentId = state.selectedStudentId || pageParams.get("student_id") || "";
+  if (!studentId) {
+    goBack();
+    return;
+  }
+  window.location.href = `../teacherFE-students/student-detail.html?student_id=${encodeURIComponent(studentId)}`;
 }
 
 function getTeacherToken() {
@@ -87,11 +105,23 @@ function getProblemSubject(session) {
   return session.problem?.subject || "General";
 }
 
-function updateSummary(summary = {}) {
-  document.getElementById("totalSessions").textContent = summary.totalSessions || 0;
-  document.getElementById("activeSessions").textContent = summary.activeSessions || 0;
-  document.getElementById("flaggedSessions").textContent = summary.flaggedSessions || 0;
-  document.getElementById("highRiskSessions").textContent = summary.highRiskSessions || 0;
+function updateSummary() {
+  const students = buildStudentGroups();
+  const problemKeys = new Set();
+  let activeSessions = 0;
+  let totalSnapshots = 0;
+
+  state.sessions.forEach((session) => {
+    const scopedProblemKey = `${session.student?.id || "unknown"}::${getProblemKey(session)}`;
+    problemKeys.add(scopedProblemKey);
+    if (session.status === "active") activeSessions += 1;
+    totalSnapshots += Number(session.countsByType?.snapshot_captured || 0);
+  });
+
+  document.getElementById("totalStudents").textContent = students.length;
+  document.getElementById("totalProblems").textContent = problemKeys.size;
+  document.getElementById("activeSessions").textContent = activeSessions;
+  document.getElementById("totalSnapshots").textContent = totalSnapshots;
 }
 
 function buildStudentGroups() {
@@ -107,6 +137,8 @@ function buildStudentGroups() {
         riskLabel: session.riskLabel || "low",
         activeCount: 0,
         flaggedCount: 0,
+        problemCount: 0,
+        highRiskCount: 0,
         subjects: new Set(),
         sessions: [],
         lastEventAt: session.lastEventAt,
@@ -118,12 +150,17 @@ function buildStudentGroups() {
     group.subjects.add(getProblemSubject(session));
     if (session.status === "active") group.activeCount += 1;
     if (session.riskLabel !== "low") group.flaggedCount += 1;
+    if (session.riskLabel === "high") group.highRiskCount += 1;
     if (new Date(session.lastEventAt || 0) > new Date(group.lastEventAt || 0)) {
       group.lastEventAt = session.lastEventAt;
     }
     if ((session.riskLabel === "high") || (group.riskLabel !== "high" && session.riskLabel === "watch")) {
       group.riskLabel = session.riskLabel;
     }
+  });
+
+  studentMap.forEach((group) => {
+    group.problemCount = new Set(group.sessions.map((session) => getProblemKey(session))).size;
   });
 
   return Array.from(studentMap.values()).sort((a, b) => new Date(b.lastEventAt || 0) - new Date(a.lastEventAt || 0));
@@ -136,9 +173,8 @@ function getFilteredStudents() {
     const haystack = [student.name, student.email].join(" ").toLowerCase();
     const matchesSearch = !query || haystack.includes(query);
     const matchesSubject = state.subject === "all" || student.subjects.has(state.subject);
-    const matchesRisk = state.risk === "all" || student.sessions.some((session) => session.riskLabel === state.risk);
     const matchesStatus = state.status === "all" || student.sessions.some((session) => session.status === state.status);
-    return matchesSearch && matchesSubject && matchesRisk && matchesStatus;
+    return matchesSearch && matchesSubject && matchesStatus;
   });
 }
 
@@ -157,7 +193,28 @@ function updateResultsMeta(filteredStudents) {
   if (!resultsTitle || !resultsMeta) return;
 
   resultsTitle.textContent = filteredStudents.length === 1 ? "1 monitored student shown" : `${filteredStudents.length} monitored students shown`;
-  resultsMeta.textContent = `Subject: ${state.subject} | Risk: ${state.risk} | Status: ${state.status} | Search: ${state.search || "none"}`;
+  resultsMeta.textContent = `Subject: ${state.subject} | Status: ${state.status} | Search: ${state.search || "none"}`;
+}
+
+function renderSelectedStudentMeta(student) {
+  const meta = document.getElementById("selectedStudentMeta");
+  const detailBtn = document.getElementById("studentDetailBtn");
+  if (!meta || !detailBtn) return;
+
+  if (!student) {
+    meta.className = "selected-student-meta hidden";
+    meta.innerHTML = "";
+    detailBtn.classList.add("hidden");
+    return;
+  }
+
+  meta.className = "selected-student-meta";
+  meta.innerHTML = `
+    <span class="meta-pill">Problems: ${student.problemCount}</span>
+    <span class="meta-pill">Active Sessions: ${student.activeCount}</span>
+    <span class="meta-pill">Last Activity: ${escapeHtml(formatDate(student.lastEventAt))}</span>
+  `;
+  detailBtn.classList.remove("hidden");
 }
 
 function renderStudents() {
@@ -196,7 +253,6 @@ function renderStudents() {
         <div>
           <div class="session-name-row">
             <strong>${escapeHtml(student.name)}</strong>
-            <span class="risk-pill ${escapeHtml(student.riskLabel || "low")}">${escapeHtml((student.riskLabel || "low").toUpperCase())}</span>
           </div>
           <p class="session-subtitle">${escapeHtml(student.email || "No email")}</p>
           <p class="session-problem">Subjects: ${escapeHtml(Array.from(student.subjects).join(", "))}</p>
@@ -204,9 +260,8 @@ function renderStudents() {
         <button class="action-btn" type="button" onclick="selectStudent('${student.id}')">View Problems</button>
       </div>
       <div class="session-metrics">
-        <span class="meta-pill">Problems Monitored: ${student.sessions.length}</span>
+        <span class="meta-pill">Problems Monitored: ${student.problemCount}</span>
         <span class="meta-pill">Active Sessions: ${student.activeCount}</span>
-        <span class="meta-pill">Flagged: ${student.flaggedCount}</span>
         <span class="meta-pill">Last Activity: ${escapeHtml(formatDate(student.lastEventAt))}</span>
       </div>
     `;
@@ -254,11 +309,13 @@ function renderProblemList() {
     meta.textContent = "Select a student to view monitored problems by subject.";
     list.className = "problem-strip empty-state";
     list.innerHTML = "<p>Select a student to see monitored problems.</p>";
+    renderSelectedStudentMeta(null);
     return;
   }
 
   const student = buildStudentGroups().find((entry) => entry.id === state.selectedStudentId);
   const problems = getProblemGroupsForStudent(state.selectedStudentId);
+  renderSelectedStudentMeta(student);
   title.textContent = student ? `${student.name} - Problem Monitoring` : "Problem Monitoring";
   meta.textContent = state.subject === "all"
     ? "Showing all monitored problems for this student."
@@ -273,11 +330,16 @@ function renderProblemList() {
   list.className = "problem-strip";
   list.innerHTML = problems.map((problem) => {
     const session = problem.latestSession || {};
+    const snapshotCount = problem.sessions.reduce((total, entry) => total + Number(entry.countsByType?.snapshot_captured || 0), 0);
     return `
       <button class="problem-chip${state.selectedProblemKey === problem.key ? " active" : ""}" type="button" onclick="selectProblem('${problem.key}')">
         <strong>${escapeHtml(problem.title)}</strong>
         <span>${escapeHtml(problem.subject)}</span>
-        <small>${escapeHtml(formatDate(session.lastEventAt))}</small>
+        <small>Latest review: ${escapeHtml(formatDate(session.lastEventAt))}</small>
+        <div class="problem-chip-metrics">
+          <span class="meta-pill">Sessions: ${problem.sessions.length}</span>
+          <span class="meta-pill">Snapshots: ${snapshotCount}</span>
+        </div>
       </button>
     `;
   }).join("");
@@ -297,8 +359,6 @@ function updatePlayerStats(session) {
   const countsByType = session?.countsByType || {};
   const editEvents = Number(countsByType.save_code || 0) + Number(countsByType.run_code || 0);
   const tabSwitches = Number(countsByType.tab_hidden || 0);
-  const pasteEvents = Number(countsByType.paste_attempt || 0);
-  const copyEvents = Number(countsByType.copy_attempt || 0);
   const blurEvents = Number(countsByType.page_blur || 0);
   const snapshots = Number(countsByType.snapshot_captured || 0);
 
@@ -306,10 +366,7 @@ function updatePlayerStats(session) {
   document.getElementById("playerSnapshots").textContent = snapshots;
   document.getElementById("playerEditEvents").textContent = editEvents;
   document.getElementById("playerTabSwitches").textContent = tabSwitches;
-  document.getElementById("playerPasteEvents").textContent = pasteEvents;
-  document.getElementById("playerCopyEvents").textContent = copyEvents;
   document.getElementById("playerWindowBlur").textContent = blurEvents;
-  document.getElementById("playerRiskLevel").textContent = (session?.riskLabel || "-").toUpperCase();
 }
 
 function getDisplayFrames(timeline = []) {
@@ -347,7 +404,6 @@ function renderPlayerFrame() {
       <div>
         <div class="session-name-row">
           <strong>${escapeHtml(session.student?.name || "Unknown student")}</strong>
-          <span class="risk-pill ${escapeHtml(session.riskLabel || "low")}">${escapeHtml((session.riskLabel || "low").toUpperCase())}</span>
         </div>
         <p class="session-subtitle">${escapeHtml(session.problem?.title || "General IDE Session")} | ${escapeHtml(session.problem?.subject || "General")}</p>
       </div>
@@ -458,16 +514,48 @@ function selectStudent(studentId) {
 function resetFilters() {
   state.search = "";
   state.subject = "all";
-  state.risk = "all";
   state.status = "all";
 
   document.getElementById("searchInput").value = "";
   document.getElementById("subjectFilter").value = "all";
-  document.getElementById("riskFilter").value = "all";
   document.getElementById("statusFilter").value = "all";
+  const availableStudents = getFilteredStudents();
+  if (!availableStudents.some((student) => student.id === state.selectedStudentId)) {
+    state.selectedStudentId = availableStudents[0]?.id || "";
+  }
+  const problems = state.selectedStudentId ? getProblemGroupsForStudent(state.selectedStudentId) : [];
+  if (!problems.some((problem) => problem.key === state.selectedProblemKey)) {
+    state.selectedProblemKey = problems[0]?.key || "";
+  }
   renderStudents();
   renderProblemList();
+  if (state.selectedProblemKey) {
+    selectProblem(state.selectedProblemKey);
+  } else {
+    loadFramesIntoPlayer({ session: {}, timeline: [] });
+  }
   setStatus("Monitoring filters reset.", "success");
+}
+
+function syncSelectionAfterFilterChange() {
+  const availableStudents = getFilteredStudents();
+  if (!availableStudents.some((student) => student.id === state.selectedStudentId)) {
+    state.selectedStudentId = availableStudents[0]?.id || "";
+    state.selectedProblemKey = "";
+  }
+
+  const problems = state.selectedStudentId ? getProblemGroupsForStudent(state.selectedStudentId) : [];
+  if (!problems.some((problem) => problem.key === state.selectedProblemKey)) {
+    state.selectedProblemKey = problems[0]?.key || "";
+  }
+
+  renderStudents();
+  renderProblemList();
+  if (state.selectedProblemKey) {
+    selectProblem(state.selectedProblemKey);
+  } else {
+    loadFramesIntoPlayer({ session: {}, timeline: [] });
+  }
 }
 
 function pickInitialStudentAndProblem() {
@@ -503,7 +591,7 @@ async function loadMonitoringSessions() {
     if (!res.ok) throw new Error(data.message || "Failed to load monitoring sessions");
 
     state.sessions = Array.isArray(data.sessions) ? data.sessions : [];
-    updateSummary(data.summary || {});
+    updateSummary();
     populateSubjectFilter();
     pickInitialStudentAndProblem();
     renderStudents();
@@ -541,37 +629,17 @@ async function loadMonitoringSessions() {
 function bindControls() {
   document.getElementById("searchInput")?.addEventListener("input", (event) => {
     state.search = event.target.value.trim().toLowerCase();
-    renderStudents();
+    syncSelectionAfterFilterChange();
   });
 
   document.getElementById("subjectFilter")?.addEventListener("change", (event) => {
     state.subject = event.target.value;
-    const availableStudents = getFilteredStudents();
-    if (!availableStudents.some((student) => student.id === state.selectedStudentId)) {
-      state.selectedStudentId = availableStudents[0]?.id || "";
-      state.selectedProblemKey = "";
-    }
-    const problems = state.selectedStudentId ? getProblemGroupsForStudent(state.selectedStudentId) : [];
-    if (!problems.some((problem) => problem.key === state.selectedProblemKey)) {
-      state.selectedProblemKey = problems[0]?.key || "";
-    }
-    renderStudents();
-    renderProblemList();
-    if (state.selectedProblemKey) {
-      selectProblem(state.selectedProblemKey);
-    } else {
-      loadFramesIntoPlayer({ session: {}, timeline: [] });
-    }
-  });
-
-  document.getElementById("riskFilter")?.addEventListener("change", (event) => {
-    state.risk = event.target.value;
-    renderStudents();
+    syncSelectionAfterFilterChange();
   });
 
   document.getElementById("statusFilter")?.addEventListener("change", (event) => {
     state.status = event.target.value;
-    renderStudents();
+    syncSelectionAfterFilterChange();
   });
 
   document.getElementById("playerRange")?.addEventListener("input", (event) => {

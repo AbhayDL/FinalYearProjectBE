@@ -13,6 +13,16 @@ function goBack() {
   window.location.href = "../teacherFE-dashboard/index.html";
 }
 
+function handleLogout() {
+  if (!confirm("Are you sure you want to logout?")) return;
+  localStorage.removeItem("teacherToken");
+  localStorage.removeItem("teacherUser");
+  localStorage.removeItem("teacherEmail");
+  localStorage.removeItem("teacherRememberMe");
+  sessionStorage.clear();
+  window.location.href = TEACHER_LOGIN_URL;
+}
+
 window.addEventListener("DOMContentLoaded", initPage);
 
 async function initPage() {

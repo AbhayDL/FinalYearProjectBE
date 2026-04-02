@@ -16,37 +16,37 @@
         <p id="sidebar-welcome-subtitle">Plan, publish, and track classroom coding work.</p>
       </div>
       <ul class="sidebar-nav">
-        <li class="nav-item active">
+        <li class="nav-item active" data-nav="dashboard">
           <a href="#" onclick="showSection('dashboard')">
             <i class="fas fa-tachometer-alt"></i> Dashboard
           </a>
         </li>
-        <li class="nav-item">
+        <li class="nav-item" data-nav="problems">
           <a href="#" onclick="navigateTo('../teacherFE-problems/index.html')">
             <i class="fas fa-code"></i> Problems
           </a>
         </li>
-        <li class="nav-item">
+        <li class="nav-item" data-nav="upload">
           <a href="#" onclick="navigateTo('../teacherFE-upload_page/index.html')">
             <i class="fas fa-upload"></i> Upload Problem
           </a>
         </li>
-        <li class="nav-item">
+        <li class="nav-item" data-nav="task-completion">
           <a href="#" onclick="navigateTo('task-completion.html')">
             <i class="fas fa-clipboard-check"></i> Task Completion
           </a>
         </li>
-        <li class="nav-item">
+        <li class="nav-item" data-nav="students">
           <a href="#" onclick="showSection('students')">
             <i class="fas fa-users"></i> Manage Students
           </a>
         </li>
-        <li class="nav-item">
+        <li class="nav-item" data-nav="monitoring">
           <a href="#" onclick="navigateTo('../teacherFE-monitoring/index.html')">
             <i class="fas fa-shield-halved"></i> Monitoring
           </a>
         </li>
-        <li class="nav-item">
+        <li class="nav-item" data-nav="settings">
           <a href="#" onclick="showSection('settings')">
             <i class="fas fa-cog"></i> Settings
           </a>
@@ -174,73 +174,6 @@
         <!-- Students List -->
         <div id="students-list" class="students-list">
           <!-- Students will be loaded here -->
-        </div>
-      </div>
-
-      <!-- Reports Section -->
-      <div id="reports-section" class="section">
-        <div class="section-header">
-          <h2>Reports & Analytics</h2>
-          <div class="export-actions">
-            <button class="btn-secondary" onclick="exportReport()">
-              <i class="fas fa-download"></i> Export Report
-            </button>
-            <button class="btn-primary" onclick="generateDetailedReport()">
-              <i class="fas fa-rotate-right"></i> Refresh Report
-            </button>
-          </div>
-        </div>
-
-        <!-- Reports Grid -->
-        <div class="reports-grid">
-          <div class="report-card">
-            <h3>Performance Overview</h3>
-            <div class="report-stat">
-              <span class="label">Top Performer</span>
-              <span class="value" id="top-performer">Alice Johnson</span>
-            </div>
-            <div class="report-stat">
-              <span class="label">Completion Rate</span>
-              <span class="value" id="avg-completion">73%</span>
-            </div>
-            <div class="report-stat">
-              <span class="label">Most Attempted Problem</span>
-              <span class="value" id="most-attempted">Two Sum</span>
-            </div>
-            <div class="report-stat">
-              <span class="label">Success Rate</span>
-              <span class="value" id="success-rate">65%</span>
-            </div>
-          </div>
-
-          <div class="report-card">
-            <h3>Activity Summary</h3>
-            <div class="report-stat">
-              <span class="label">Total Submissions</span>
-              <span class="value" id="total-submissions-report">156</span>
-            </div>
-            <div class="report-stat">
-              <span class="label">Weekly Growth</span>
-              <span class="value" id="weekly-growth">+12%</span>
-            </div>
-            <div class="report-stat">
-              <span class="label">Best Subject</span>
-              <span class="value" id="best-subject">Algorithms</span>
-            </div>
-            <div class="report-stat">
-              <span class="label">Needs Improvement</span>
-              <span class="value" id="needs-improvement">Data Structures</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Charts Placeholder -->
-        <div class="report-card">
-          <h3>Progress Charts</h3>
-          <div class="chart-placeholder">
-            <i class="fas fa-chart-bar"></i>
-            <p>Interactive charts will be displayed here showing student progress over time.</p>
-          </div>
         </div>
       </div>
 

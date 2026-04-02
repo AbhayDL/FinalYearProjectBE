@@ -81,14 +81,15 @@ function showSection(sectionName, event) {
     activeNavItem = event.target.closest(".nav-item");
   }
   if (!activeNavItem) {
-    activeNavItem = Array.from(document.querySelectorAll(".sidebar-nav .nav-item")).find((item) => {
-      const text = item.textContent.toLowerCase();
-      if (sectionName === "dashboard") return text.includes("dashboard");
-      if (sectionName === "students") return text.includes("manage students");
-      if (sectionName === "settings") return text.includes("settings");
-      if (sectionName === "reports") return text.includes("reports");
-      return false;
-    });
+    const navKeyMap = {
+      dashboard: "dashboard",
+      students: "students",
+      settings: "settings"
+    };
+    const navKey = navKeyMap[sectionName];
+    if (navKey) {
+      activeNavItem = document.querySelector(`.sidebar-nav .nav-item[data-nav="${navKey}"]`);
+    }
   }
   if (activeNavItem) {
     activeNavItem.classList.add("active");
@@ -98,9 +99,6 @@ function showSection(sectionName, event) {
   switch(sectionName) {
     case "students":
       loadStudents();
-      break;
-    case "reports":
-      loadReports();
       break;
   }
 }
@@ -121,7 +119,6 @@ let completionData = null;
 let completionFilter = "all";
 let completionProblemTitle = "task_completion";
 let teacherStudents = [];
-let teacherReportSummary = null;
 let teacherSettingsStatusEl = null;
 
 function updateSidebarWelcome(teacher) {
@@ -429,63 +426,6 @@ function toggleStudentStatus(studentId) {
 // ============================
 // 📊 REPORTS & ANALYTICS
 // ============================
-async function loadReports() {
-  try {
-    const reportsRes = await fetch(`${EFFECTIVE_AUTH_BASE}/api/teacher/reports-summary`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("teacherToken")}` }
-    });
-
-    if (!reportsRes.ok) throw new Error("Failed to load report summary");
-
-    teacherReportSummary = await reportsRes.json();
-    document.getElementById("total-submissions-report").textContent = teacherReportSummary.totalSubmissions;
-    document.getElementById("top-performer").textContent = teacherReportSummary.topPerformer;
-    document.getElementById("avg-completion").textContent = `${teacherReportSummary.averageScore}%`;
-    document.getElementById("most-attempted").textContent = teacherReportSummary.mostAttempted;
-    document.getElementById("success-rate").textContent = `${teacherReportSummary.successRate}%`;
-    document.getElementById("weekly-growth").textContent = `${teacherReportSummary.weeklyGrowth >= 0 ? "+" : ""}${teacherReportSummary.weeklyGrowth}%`;
-    document.getElementById("best-subject").textContent = teacherReportSummary.bestSubject;
-    document.getElementById("needs-improvement").textContent = teacherReportSummary.needsImprovement;
-
-  } catch (error) {
-    console.error("Error loading reports:", error);
-  }
-}
-
-function exportReport() {
-  if (!teacherReportSummary) {
-    alert("Report data is still loading.");
-    return;
-  }
-
-  const rows = [
-    ["Metric", "Value"],
-    ["Top Performer", teacherReportSummary.topPerformer],
-    ["Average Score", `${teacherReportSummary.averageScore}%`],
-    ["Most Attempted", teacherReportSummary.mostAttempted],
-    ["Success Rate", `${teacherReportSummary.successRate}%`],
-    ["Total Submissions", teacherReportSummary.totalSubmissions],
-    ["Weekly Growth", `${teacherReportSummary.weeklyGrowth}%`],
-    ["Best Subject", teacherReportSummary.bestSubject],
-    ["Needs Improvement", teacherReportSummary.needsImprovement]
-  ];
-
-  const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `teacher_report_${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
-function generateDetailedReport() {
-  loadReports();
-}
-
 function saveTeacherProfile() {
   const name = document.getElementById("teacher-profile-name")?.value.trim() || "";
   const email = document.getElementById("teacher-profile-email")?.value.trim() || "";

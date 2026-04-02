@@ -167,6 +167,11 @@ router.get("/students/:id/overview", protect, teacher, async (req, res) => {
         queryPending: Boolean(submission.queryPending),
         queryStatus: submission.queryStatus || "none",
         teacherAnsweredAt: submission.teacherAnsweredAt || null,
+        teacherOverrideStatus: submission.teacherOverrideStatus || "none",
+        guiReview: {
+          teacherStatus: submission.guiReview?.teacherStatus || "not_required",
+          teacherReviewedAt: submission.guiReview?.teacherReviewedAt || null
+        },
         updatedAt: submission.updatedAt,
         createdAt: submission.createdAt,
         problem: submission.problem
