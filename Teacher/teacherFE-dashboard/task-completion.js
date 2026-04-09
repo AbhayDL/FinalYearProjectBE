@@ -716,6 +716,10 @@ async function viewSubmissionCode(studentId, submissionId = "") {
                 <option value="pending" ${submission.teacherOverrideStatus === "pending" ? "selected" : ""}>Mark Pending Review</option>
               </select>
             </label>
+            <label>
+              <span>Teacher Review Note</span>
+              <textarea id="teacher-review-note" placeholder="Add feedback for the student about code quality, corrections, or next steps.">${escapeHtml(submission.guiReview?.teacherNote || "")}</textarea>
+            </label>
           </div>
         ` : ""}
         ${renderGuiProofSection(data.problem || {}, submission)}
@@ -787,6 +791,7 @@ async function saveTeacherEditedCode(submissionId, languageId) {
   const resolveQuery = document.getElementById("resolve-query-toggle");
   const guiTeacherStatus = document.getElementById("gui-teacher-status");
   const guiTeacherNote = document.getElementById("gui-teacher-note");
+  const teacherReviewNote = document.getElementById("teacher-review-note");
   const teacherOverrideStatus = document.getElementById("teacher-override-status");
   const sourceCode = String(input?.value || "");
 
@@ -811,7 +816,7 @@ async function saveTeacherEditedCode(submissionId, languageId) {
           resolveQuery: Boolean(resolveQuery?.checked),
           teacherOverrideStatus: teacherOverrideStatus?.value || "none",
           guiTeacherStatus: guiTeacherStatus?.value || "not_required",
-          guiTeacherNote: guiTeacherNote?.value || ""
+          guiTeacherNote: guiTeacherNote?.value || teacherReviewNote?.value || ""
         })
       }
     );
