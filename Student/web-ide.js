@@ -5,7 +5,6 @@ const LOGIN_PAGE = "index.html";
 const WEB_LANGUAGE_ID = 1001;
 const pageParams = new URLSearchParams(window.location.search);
 const isPracticeMode = pageParams.get("mode") === "practice";
-const WEB_PRACTICE_STORAGE_KEY = "student_web_practice_draft";
 
 let currentProblem = null;
 let webEditor = null;
@@ -46,6 +45,16 @@ function getStoredStudent() {
   }
 }
 
+function getStudentDraftScope() {
+  const student = getStoredStudent() || {};
+  const rawScope = student._id || student.id || student.email || student.rollNo || student.name || "anonymous";
+  return String(rawScope).trim().toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+}
+
+function getPracticeWebDraftStorageKey() {
+  return `student_web_practice_draft_${getStudentDraftScope()}`;
+}
+
 function escapeHtml(text) {
   return String(text || "")
     .replace(/&/g, "&amp;")
@@ -75,20 +84,47 @@ function setAnswerBanner(message) {
   }
 }
 
+function formatTeacherReviewNote(note) {
+  const trimmed = String(note || "").trim();
+  return trimmed ? ` Review note: ${trimmed}` : "";
+}
+
+function getWebTeacherReviewBanner(submission = {}) {
+  const teacherReviewNote = formatTeacherReviewNote(submission.guiReview?.teacherNote);
+
+  if (submission.guiReview?.teacherStatus === "approved") {
+    return `Teacher approved your web output.${teacherReviewNote}`;
+  }
+
+  if (submission.guiReview?.teacherStatus === "needs_changes") {
+    return `Teacher requested web changes.${teacherReviewNote || ""}`.trim();
+  }
+
+  if (teacherReviewNote) {
+    return `Teacher left a review note.${teacherReviewNote}`;
+  }
+
+  if (!submission.queryPending && submission.teacherAnsweredAt) {
+    return "Teacher answered your query in the saved code comments.";
+  }
+
+  return "";
+}
+
 function savePracticeWebDraft() {
   if (!webEditor) return;
   const payload = {
     sourceCode: webEditor.getValue(),
     savedAt: new Date().toISOString()
   };
-  localStorage.setItem(WEB_PRACTICE_STORAGE_KEY, JSON.stringify(payload));
+  localStorage.setItem(getPracticeWebDraftStorageKey(), JSON.stringify(payload));
   setCommentStatus(`Practice draft saved locally at ${new Date(payload.savedAt).toLocaleTimeString()}.`);
   setStatus("Practice draft saved locally.");
 }
 
 function loadPracticeWebDraft() {
   try {
-    const raw = localStorage.getItem(WEB_PRACTICE_STORAGE_KEY);
+    const raw = localStorage.getItem(getPracticeWebDraftStorageKey());
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -232,15 +268,7 @@ async function loadSavedSubmission(problemId) {
     if (queryToggle) queryToggle.checked = Boolean(submission.queryPending);
     if (notes) notes.value = submission.guiReview?.notes || "";
 
-    if (submission.guiReview?.teacherStatus === "approved") {
-      setAnswerBanner("Teacher approved your web output.");
-    } else if (submission.guiReview?.teacherStatus === "needs_changes") {
-      setAnswerBanner(`Teacher requested web changes${submission.guiReview.teacherNote ? `: ${submission.guiReview.teacherNote}` : "."}`);
-    } else if (!submission.queryPending && submission.teacherAnsweredAt) {
-      setAnswerBanner("Teacher answered your query in the saved code comments.");
-    } else {
-      setAnswerBanner("");
-    }
+    setAnswerBanner(getWebTeacherReviewBanner(submission));
 
     setCommentStatus("Saved web submission loaded.");
   } catch (error) {

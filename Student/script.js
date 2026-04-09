@@ -70,6 +70,12 @@ function getStoredStudent() {
   }
 }
 
+function getStudentDraftScope() {
+  const student = getStoredStudent() || {};
+  const rawScope = student._id || student.id || student.email || student.rollNo || student.name || "anonymous";
+  return String(rawScope).trim().toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+}
+
 if (!ensureLoggedIn()) {
   throw new Error("Not authenticated");
 }
@@ -124,7 +130,7 @@ print("Hello from practice mode")
 }
 
 function getPracticeDraftStorageKey() {
-  return "student_programming_practice_draft";
+  return `student_programming_practice_draft_${getStudentDraftScope()}`;
 }
 
 function savePracticeDraft() {
@@ -212,17 +218,28 @@ function setQueryAnsweredBanner(message) {
   }
 }
 
+function formatTeacherReviewNote(note) {
+  const trimmed = String(note || "").trim();
+  return trimmed ? ` Review note: ${trimmed}` : "";
+}
+
 function getStudentReviewBanner(submission = {}) {
+  const teacherReviewNote = formatTeacherReviewNote(submission.guiReview?.teacherNote);
+
   if (submission.teacherOverrideStatus === "pending") {
-    return "Teacher moved this submission back to pending review. Please check the code/comments, update your solution, and resubmit.";
+    return `Teacher moved this submission back to pending review. Please check the code/comments, update your solution, and resubmit.${teacherReviewNote}`;
   }
 
   if (submission.guiReview?.teacherStatus === "approved") {
-    return "Teacher approved your GUI output.";
+    return `Teacher approved your GUI output.${teacherReviewNote}`;
   }
 
   if (submission.guiReview?.teacherStatus === "needs_changes") {
-    return `Teacher requested a resubmission${submission.guiReview.teacherNote ? `: ${submission.guiReview.teacherNote}` : "."}`;
+    return `Teacher requested a resubmission.${teacherReviewNote || ""}`.trim();
+  }
+
+  if (teacherReviewNote) {
+    return `Teacher left a review note.${teacherReviewNote}`;
   }
 
   if (!submission.queryPending && submission.teacherAnsweredAt) {
@@ -336,7 +353,7 @@ function attachEnhancedRunHandler() {
 }
 
 function getDraftStorageKey(problemId) {
-  return `student_draft_${problemId || "unknown"}`;
+  return `student_draft_${getStudentDraftScope()}_${problemId || "unknown"}`;
 }
 
 function saveDraftLocally() {
