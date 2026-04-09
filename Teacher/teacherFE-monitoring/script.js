@@ -83,11 +83,23 @@ function formatDate(value) {
 function formatDuration(start, end) {
   if (!start || !end) return "-";
   const diffMs = Math.max(0, new Date(end) - new Date(start));
-  const totalSeconds = Math.floor(diffMs / 1000);
+  return formatDurationMs(diffMs);
+}
+
+function formatDurationMs(diffMs) {
+  const safeDiffMs = Math.max(0, Number(diffMs) || 0);
+  const totalSeconds = Math.floor(safeDiffMs / 1000);
   const mins = Math.floor(totalSeconds / 60);
   const secs = totalSeconds % 60;
   if (mins <= 0) return `${secs}s`;
   return `${mins}m ${secs}s`;
+}
+
+function formatActiveDuration(session = {}) {
+  if (Number.isFinite(Number(session?.activeDurationMs)) && Number(session.activeDurationMs) > 0) {
+    return formatDurationMs(session.activeDurationMs);
+  }
+  return formatDuration(session?.startedAt, session?.lastEventAt);
 }
 
 function prettifyEventType(eventType) {
@@ -371,7 +383,7 @@ function updatePlayerStats(session) {
   const blurEvents = Number(countsByType.page_blur || 0);
   const snapshots = Number(countsByType.snapshot_captured || 0);
 
-  document.getElementById("playerTimeTaken").textContent = formatDuration(session?.startedAt, session?.lastEventAt);
+  document.getElementById("playerTimeTaken").textContent = formatActiveDuration(session);
   document.getElementById("playerSnapshots").textContent = snapshots;
   document.getElementById("playerEditEvents").textContent = editEvents;
   document.getElementById("playerTabSwitches").textContent = tabSwitches;

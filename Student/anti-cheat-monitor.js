@@ -147,7 +147,7 @@
 
     snapshotInterval = window.setInterval(() => {
       recordSnapshot("periodic");
-    }, 15000);
+    }, 5000);
 
     window.addEventListener("beforeunload", () => {
       if (snapshotInterval) {

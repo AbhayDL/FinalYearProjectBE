@@ -25,6 +25,8 @@ const RISK_WEIGHTS = {
   page_focus: 0,
 };
 
+const MAX_ACTIVE_GAP_MS = 30 * 1000;
+
 function normalizeAcademicValue(value) {
   return String(value || "")
     .toLowerCase()
@@ -89,6 +91,39 @@ function computeRiskLabel(score, suspiciousCount) {
   return "low";
 }
 
+function computeActiveDurationMs(events = []) {
+  const sorted = [...events].sort((a, b) => new Date(a.occurredAt) - new Date(b.occurredAt));
+  if (sorted.length < 2) return 0;
+
+  let tabVisible = true;
+  let pageFocused = true;
+  let activeDurationMs = 0;
+
+  const applyEventState = (eventType) => {
+    if (eventType === "tab_hidden") tabVisible = false;
+    if (eventType === "tab_visible") tabVisible = true;
+    if (eventType === "page_blur") pageFocused = false;
+    if (eventType === "page_focus" || eventType === "session_started") pageFocused = true;
+  };
+
+  for (let index = 0; index < sorted.length - 1; index += 1) {
+    const current = sorted[index];
+    const next = sorted[index + 1];
+
+    applyEventState(current.eventType);
+
+    const currentTime = new Date(current.occurredAt).getTime();
+    const nextTime = new Date(next.occurredAt).getTime();
+    const gapMs = Math.max(0, nextTime - currentTime);
+
+    if (tabVisible && pageFocused && gapMs > 0 && gapMs <= MAX_ACTIVE_GAP_MS) {
+      activeDurationMs += gapMs;
+    }
+  }
+
+  return activeDurationMs;
+}
+
 function summarizeSession(events = []) {
   const sorted = [...events].sort((a, b) => new Date(a.occurredAt) - new Date(b.occurredAt));
   const firstEvent = sorted[0] || {};
@@ -103,6 +138,7 @@ function summarizeSession(events = []) {
   const hasEnded = sorted.some((event) => event.eventType === "session_ended");
   const lastSeen = lastEvent.occurredAt ? new Date(lastEvent.occurredAt) : null;
   const isActive = !hasEnded && lastSeen && (Date.now() - lastSeen.getTime() <= 15 * 60 * 1000);
+  const activeDurationMs = computeActiveDurationMs(sorted);
   const studentRecord = lastEvent.student || firstEvent.student || {};
   const problemRecord = [...sorted].reverse().find((event) => event.problem)?.problem || null;
 
@@ -130,6 +166,7 @@ function summarizeSession(events = []) {
       : null,
     startedAt: firstEvent.occurredAt || null,
     lastEventAt: lastEvent.occurredAt || null,
+    activeDurationMs,
     latestEventType: lastEvent.eventType || "",
     eventCount: sorted.length,
     suspiciousEventCount: suspiciousEvents.length,
