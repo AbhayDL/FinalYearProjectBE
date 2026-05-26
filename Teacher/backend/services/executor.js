@@ -1,4 +1,5 @@
 const { spawn } = require("child_process");
+const { existsSync } = require("fs");
 const fs = require("fs/promises");
 const os = require("os");
 const path = require("path");
@@ -61,6 +62,27 @@ const SUPPORTED_LANGUAGES = [
   { id: 72, name: "Ruby" },
   { id: 1001, name: "HTML/CSS/JS", mode: "web" },
 ];
+
+function getDockerCommand() {
+  if (process.platform !== "win32") {
+    return { command: "docker", env: process.env };
+  }
+
+  const dockerBinDir = path.join("C:", "Program Files", "Docker", "Docker", "resources", "bin");
+  const dockerExe = path.join(dockerBinDir, "docker.exe");
+  const pathKey = Object.keys(process.env).find((key) => key.toLowerCase() === "path") || "Path";
+  const currentPath = process.env[pathKey] || "";
+  const pathEntries = currentPath.split(path.delimiter).filter(Boolean);
+  const nextPathEntries = pathEntries.includes(dockerBinDir) ? pathEntries : [dockerBinDir, ...pathEntries];
+
+  return {
+    command: existsSync(dockerExe) ? dockerExe : "docker",
+    env: {
+      ...process.env,
+      [pathKey]: nextPathEntries.join(path.delimiter),
+    },
+  };
+}
 
 function buildDockerArgs(config, tmpDir, fileName, image) {
   const outputName = config.outputName || "";
@@ -171,10 +193,11 @@ async function executeCode(sourceCode, languageId, stdin = "") {
     const codeToWrite = Number(languageId) === 71 ? buildPythonSource(sourceCode || "") : (sourceCode || "");
     await fs.writeFile(filePath, codeToWrite, "utf8");
     let lastResult = { stdout: null, stderr: "Execution failed", exitCode: 1, artifacts: [] };
+    const docker = getDockerCommand();
 
     for (const image of imagesToTry) {
       const args = buildDockerArgs(config, workDir, fileName, image);
-      const proc = spawn("docker", args);
+      const proc = spawn(docker.command, args, { env: docker.env });
       let stdout = "";
       let stderr = "";
 
