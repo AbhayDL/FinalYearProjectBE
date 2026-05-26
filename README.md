@@ -214,6 +214,4 @@ GET  /api/auth/me              Current user profile
 - Improve centralized frontend routing and shared utilities
 - Add stricter request validation for API payloads
 
-## License
 
-This project is currently not licensed. Add a license file before publishing or distributing it.
