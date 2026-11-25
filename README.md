@@ -1,21 +1,20 @@
-# CodeAssPlat
+# Code Assessment Platform
 
-CodeAssPlat is a multi-role coding assessment platform for colleges, classrooms, and programming labs. It provides separate interfaces for admins, teachers, and students, backed by an Express and MongoDB API with Docker-based code execution.
+Code Assessment Platform is a multi-role coding assessment platform for colleges programming labs. It provides separate interfaces for admins, teachers, and students, backed by an Express and MongoDB API with Docker-based code execution.
 
 ## Features
 
 - Role-based login for Admin, Teacher, and Student users
-- Admin dashboard for managing users, departments, subjects, and analytics
-- Bulk student creation with Excel import support
 - Teacher dashboard for creating problems, assigning subjects, monitoring students, and reviewing submissions
 - Student dashboard with problem listing, code editor, submission flow, and saved work
 - Docker-powered code execution for Python, Java, JavaScript, C, C++, Rust, and Ruby
 - HTML/CSS/JS Web IDE flow for frontend-style assignments
-- Hidden and visible test cases for coding problems
+- Admin dashboard for managing users(with Bulk student creation with Excel import support), departments, subjects, and analytics
+- Hidden and visible test cases for coding problems for automated assessment
+- Teacher review workflow for GUI, Graph, ML visual, and web-based submissions
 - Anti-cheat monitoring events and teacher monitoring views
-- Teacher review workflow for GUI, graph, ML visual, and web-based submissions
 
-## Tech Stack
+## Technology Stack
 
 - Frontend: HTML, CSS, JavaScript
 - Backend: Node.js, Express.js
@@ -27,17 +26,17 @@ CodeAssPlat is a multi-role coding assessment platform for colleges, classrooms,
 ## Project Structure
 
 ```text
-CodeAssPlat/
+CodeAssessmentPlateform/
 |-- Admin/                       # Admin login, dashboard, user and subject pages
 |-- Student/                     # Student login, dashboard, coding IDE, and Web IDE
 |-- Teacher/
-|   |-- backend/                 # Express API, MongoDB models, routes, executor service
-|   |-- teacherFE-dashboard/     # Teacher dashboard and task completion pages
-|   |-- teacherFE-monitoring/    # Anti-cheat/session monitoring UI
-|   |-- teacherFE-problems/      # Problem list and problem detail pages
-|   |-- teacherFE-students/      # Student list and student detail pages
-|   `-- teacherFE-upload_page/   # Problem creation/editing page
-`-- shared/                      # Shared project assets/utilities, if needed
+    |-- backend/                 # Express API, MongoDB models, routes, executor service
+    |-- teacherFE-dashboard/     # Teacher dashboard and task completion pages
+    |-- teacherFE-monitoring/    # Anti-cheat/session monitoring UI
+    |-- teacherFE-problems/      # Problem list and problem detail pages
+    |-- teacherFE-students/      # Student list and student detail pages
+    `-- teacherFE-upload_page/   # Problem creation/editing page
+
 ```
 
 ## Prerequisites
@@ -116,7 +115,7 @@ Change these credentials after your first login before using the project in a re
 
 ## Docker Executor Setup
 
-CodeAssPlat runs submitted code inside Docker containers. Make sure Docker Desktop is running before using the code editor.
+Code Assessment Platform runs submitted code inside Docker containers. Make sure Docker Desktop is running before using the code editor.
 
 The executor can use public Docker images for most languages:
 
@@ -197,21 +196,3 @@ GET  /api/auth/me              Current user profile
 5. Add departments, teachers, subjects, and students.
 6. Teachers create problems and review submissions.
 7. Students log in, solve assigned problems, run code, and submit solutions.
-
-## Security Notes
-
-- Do not commit `.env` files or real database credentials.
-- Replace the default admin credentials before deployment.
-- Use a strong `JWT_SECRET`.
-- Run the backend behind HTTPS in production.
-- Review Docker resource limits before hosting public submissions.
-
-## Future Improvements
-
-- Add a unified frontend build system
-- Add automated backend tests
-- Add deployment configuration
-- Improve centralized frontend routing and shared utilities
-- Add stricter request validation for API payloads
-
-
